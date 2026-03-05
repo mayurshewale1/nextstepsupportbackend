@@ -1,0 +1,87 @@
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const config = require('./config/env');
+const Database = require('./config/database');
+const { errorHandler } = require('./middleware/errorHandler');
+const routes = require('./routes');
+
+const app = express();
+
+// Validate environment before starting
+try {
+  config.validateEnv();
+} catch (err) {
+  console.error('✗', err.message);
+  process.exit(1);
+}
+
+// Security middleware
+app.use(helmet());
+app.use(cors({
+  origin: config.corsOrigin,
+  credentials: true,
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: config.isProduction ? 100 : 1000,
+  message: { success: false, message: 'Too many requests, please try again later' },
+});
+app.use('/api', limiter);
+
+// Stricter rate limit for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many login attempts' },
+});
+app.use('/api/auth', authLimiter);
+
+// Body parsing with size limit
+app.use(express.json({ limit: '10mb' }));
+
+// Routes
+app.use('/api', routes);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+  });
+});
+
+// Error handler (must be last)
+app.use(errorHandler);
+
+// Start server
+const startServer = async () => {
+  try {
+    await Database.connect();
+
+    app.listen(config.port, () => {
+      console.log(`\n✓ Server running on http://localhost:${config.port}`);
+      console.log(`✓ Environment: ${config.nodeEnv}`);
+      console.log(`✓ API Version: ${config.apiVersion}\n`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('\nSIGTERM received. Shutting down gracefully...');
+  await Database.disconnect();
+  process.exit(0);
+});
+
+module.exports = app;
