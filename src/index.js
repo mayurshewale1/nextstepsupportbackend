@@ -21,10 +21,19 @@ try {
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: config.corsOrigin,
+// CORS: allow mobile apps (no origin) + configured origins
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // Mobile apps, Postman, etc.
+    const allowed = (config.corsOrigin || '').split(',').map((o) => o.trim()).filter(Boolean);
+    if (allowed.length === 0 || allowed.includes('*') || allowed.includes(origin)) {
+      return cb(null, true);
+    }
+    cb(null, false);
+  },
   credentials: true,
-}));
+};
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
