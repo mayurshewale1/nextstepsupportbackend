@@ -47,10 +47,11 @@ class TicketController {
     try {
       const { period, startDate, endDate, status, assignedTo } = req.query;
       const filters = { period, startDate, endDate, status, assignedTo };
+      const userId = parseInt(req.user?.id, 10);
       if (req.user.role?.toLowerCase() === 'engineer') {
-        filters.assignedTo = req.user.id;
+        filters.assignedTo = userId;
       } else if (req.user.role?.toLowerCase() === 'user') {
-        filters.createdBy = req.user.id;
+        filters.createdBy = userId;
       }
       const tickets = await Ticket.findAll(filters);
       res.status(200).json({

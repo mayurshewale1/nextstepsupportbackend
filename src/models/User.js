@@ -73,8 +73,8 @@ class User {
     let paramIndex = 1;
 
     if (filters.role) {
-      query += ` AND role = $${paramIndex}`;
-      params.push(filters.role);
+      query += ` AND LOWER(role) = LOWER($${paramIndex})`;
+      params.push(String(filters.role).trim());
       paramIndex++;
     }
     if (filters.is_active !== undefined) {
