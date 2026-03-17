@@ -7,6 +7,11 @@ const createUserRules = [
   body('role').optional().isIn(['admin', 'Admin', 'engineer', 'Engineer', 'user', 'User']).withMessage('Invalid role'),
   body('phone').optional().trim(),
   body('userId').optional().trim(),
+  body('latitude').optional().isFloat({ min: -90, max: 90 }),
+  body('longitude').optional().isFloat({ min: -180, max: 180 }),
+  body('siteName').optional().trim(),
+  body('siteAddress').optional().trim(),
+  body('siteType').optional().trim(),
 ];
 
 const updateUserRules = [
@@ -16,6 +21,14 @@ const updateUserRules = [
   body('role').optional().isIn(['admin', 'Admin', 'engineer', 'Engineer', 'user', 'User']),
   body('phone').optional().trim(),
   body('userId').optional().trim(),
+  body('is_active').optional().isBoolean().withMessage('is_active must be boolean'),
+  body('latitude').optional().isFloat({ min: -90, max: 90 }),
+  body('longitude').optional().isFloat({ min: -180, max: 180 }),
+];
+
+const updateLocationRules = [
+  body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude required'),
+  body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude required'),
 ];
 
 const idParamRules = [
@@ -32,4 +45,4 @@ const validate = (req, res, next) => {
   });
 };
 
-module.exports = { createUserRules, updateUserRules, idParamRules, validate };
+module.exports = { createUserRules, updateUserRules, updateLocationRules, idParamRules, validate };

@@ -1,15 +1,19 @@
 require('dotenv').config();
 
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const config = require('./config/env');
 const Database = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
 const routes = require('./routes');
+const { initSocket } = require('./socket');
 
 const app = express();
+const server = http.createServer(app);
 
 // Validate environment before starting
 try {
@@ -54,6 +58,12 @@ app.use('/api/auth', authLimiter);
 // Body parsing with size limit
 app.use(express.json({ limit: '10mb' }));
 
+// Static files for uploaded images (before /api routes)
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// Initialize Socket.IO
+initSocket(server);
+
 // Routes
 app.use('/api', routes);
 
@@ -73,7 +83,7 @@ const startServer = async () => {
   try {
     await Database.connect();
 
-    app.listen(config.port, () => {
+    server.listen(config.port, () => {
       console.log(`\n✓ Server running on http://localhost:${config.port}`);
       console.log(`✓ Environment: ${config.nodeEnv}`);
       console.log(`✓ API Version: ${config.apiVersion}\n`);

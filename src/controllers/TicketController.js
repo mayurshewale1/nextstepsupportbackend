@@ -1,4 +1,46 @@
 const Ticket = require('../models/Ticket');
+const User = require('../models/User');
+const { emitTicketCreated, emitTicketAssigned, emitTicketUpdated } = require('../socket');
+
+/**
+ * Haversine formula: distance in km between two lat/lng points
+ */
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Find nearest engineer to given coordinates. Returns engineer id or null.
+ */
+async function findNearestEngineer(userLat, userLon) {
+  const engineers = await User.getAll({ role: 'engineer' });
+  const withLocation = engineers.filter(
+    (e) => e.latitude != null && e.longitude != null && e.is_active !== false
+  );
+  if (withLocation.length === 0) return null;
+
+  let nearest = withLocation[0];
+  let minDist = getDistanceKm(userLat, userLon, nearest.latitude, nearest.longitude);
+
+  for (let i = 1; i < withLocation.length; i++) {
+    const e = withLocation[i];
+    const d = getDistanceKm(userLat, userLon, e.latitude, e.longitude);
+    if (d < minDist) {
+      minDist = d;
+      nearest = e;
+    }
+  }
+  return nearest.id;
+}
 
 class TicketController {
   static async getTickets(req, res, next) {
@@ -42,7 +84,7 @@ class TicketController {
 
   static async createTicket(req, res, next) {
     try {
-      const { title, description, priority, category } = req.body;
+      const { title, description, priority, category, latitude, longitude } = req.body;
       const createdBy = req.user?.id;
       if (!createdBy) {
         return res.status(401).json({
@@ -50,16 +92,100 @@ class TicketController {
           message: 'Authentication required',
         });
       }
+
+      let assignedTo = null;
+      // Auto-assign to nearest engineer when user location is provided
+      if (
+        typeof latitude === 'number' &&
+        typeof longitude === 'number' &&
+        !isNaN(latitude) &&
+        !isNaN(longitude)
+      ) {
+        assignedTo = await findNearestEngineer(latitude, longitude);
+      }
+
       const ticket = await Ticket.create({
         title,
         description,
+        status: assignedTo ? 'in-progress' : 'open',
         priority: priority || 'medium',
         category: category || null,
         createdBy,
+        assignedTo,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
       });
+
+      const message = assignedTo
+        ? 'Ticket created and assigned to nearest engineer'
+        : 'Ticket created successfully';
+
+      emitTicketCreated(ticket);
+
       res.status(201).json({
         success: true,
-        message: 'Ticket created successfully',
+        message,
+        data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createTicketWithImage(req, res, next) {
+    try {
+      const body = req.body || {};
+      const title = body.title?.trim();
+      const description = body.description?.trim();
+      if (!title || !description) {
+        return res.status(400).json({
+          success: false,
+          message: 'Title and description are required',
+        });
+      }
+      const createdBy = req.user?.id;
+      if (!createdBy) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+      const priority = body.priority || 'medium';
+      const category = body.category || null;
+      let latitude = parseFloat(body.latitude);
+      let longitude = parseFloat(body.longitude);
+      if (isNaN(latitude)) latitude = null;
+      if (isNaN(longitude)) longitude = null;
+
+      let assignedTo = null;
+      if (latitude != null && longitude != null) {
+        assignedTo = await findNearestEngineer(latitude, longitude);
+      }
+
+      const imagePath = req.file ? req.file.filename : null;
+
+      const ticket = await Ticket.create({
+        title,
+        description,
+        status: assignedTo ? 'in-progress' : 'open',
+        priority,
+        category,
+        createdBy,
+        assignedTo,
+        latitude,
+        longitude,
+        imagePath,
+      });
+
+      const message = assignedTo
+        ? 'Ticket created and assigned to nearest engineer'
+        : 'Ticket created successfully';
+
+      emitTicketCreated(ticket);
+
+      res.status(201).json({
+        success: true,
+        message,
         data: ticket,
       });
     } catch (error) {
@@ -75,6 +201,20 @@ class TicketController {
       delete updates.createdBy;
       delete updates.created_at;
 
+      const existing = await Ticket.findById(parseInt(id, 10));
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Ticket not found',
+        });
+      }
+      if (existing.status === 'resolved' || existing.status === 'closed') {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot update a completed ticket. Status is final.',
+        });
+      }
+
       const ticket = await Ticket.update(parseInt(id, 10), updates);
       if (!ticket) {
         return res.status(404).json({
@@ -82,6 +222,7 @@ class TicketController {
           message: 'Ticket not found',
         });
       }
+      emitTicketUpdated(ticket);
       res.status(200).json({
         success: true,
         message: 'Ticket updated successfully',
@@ -109,10 +250,56 @@ class TicketController {
           message: 'Ticket not found',
         });
       }
+      emitTicketAssigned(ticket);
       res.status(200).json({
         success: true,
         message: 'Ticket assigned successfully',
         data: ticket,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async submitFeedback(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { rating, feedback_comment: feedbackComment } = req.body;
+      const ticket = await Ticket.findById(parseInt(id, 10));
+      if (!ticket) {
+        return res.status(404).json({
+          success: false,
+          message: 'Ticket not found',
+        });
+      }
+      if (ticket.status !== 'resolved' && ticket.status !== 'closed') {
+        return res.status(400).json({
+          success: false,
+          message: 'Feedback can only be submitted for completed tickets',
+        });
+      }
+      const isCreator = String(ticket.created_by) === String(req.user.id);
+      const isAdmin = (req.user.role || '').toLowerCase() === 'admin';
+      if (!isCreator && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only the ticket creator can submit feedback',
+        });
+      }
+      const updates = {};
+      if (rating != null && rating >= 1 && rating <= 5) updates.rating = rating;
+      if (feedbackComment != null) updates.feedback_comment = feedbackComment;
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Rating (1-5) is required',
+        });
+      }
+      const updated = await Ticket.update(parseInt(id, 10), updates);
+      res.status(200).json({
+        success: true,
+        message: 'Feedback submitted successfully',
+        data: updated,
       });
     } catch (error) {
       next(error);

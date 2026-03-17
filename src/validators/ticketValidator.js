@@ -5,6 +5,8 @@ const createTicketRules = [
   body('description').trim().notEmpty().withMessage('Description is required'),
   body('priority').optional().isIn(['low', 'medium', 'high']),
   body('category').optional().trim(),
+  body('latitude').optional().isFloat({ min: -90, max: 90 }),
+  body('longitude').optional().isFloat({ min: -180, max: 180 }),
 ];
 
 const updateTicketRules = [

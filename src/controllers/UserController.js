@@ -5,6 +5,34 @@ const sanitizeUser = User.sanitizeUser;
 const SALT_ROUNDS = 10;
 
 class UserController {
+  /**
+   * Get current authenticated user's profile (fixes engineer profile display)
+   */
+  static async getCurrentUser(req, res, next) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+      const user = await User.findById(parseInt(userId, 10));
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+      res.status(200).json({
+        success: true,
+        data: sanitizeUser(user),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getAllUsers(req, res, next) {
     try {
       const { role } = req.query;
@@ -40,7 +68,7 @@ class UserController {
 
   static async createUser(req, res, next) {
     try {
-      const { email, password, name, role, phone, userId } = req.body;
+      const { email, password, name, role, phone, userId, latitude, longitude, siteName, siteAddress, siteType } = req.body;
 
       const existingByEmail = await User.findByEmail(email);
       if (existingByEmail) {
@@ -66,6 +94,11 @@ class UserController {
         name: name || email.split('@')[0],
         role: role || 'user',
         phone: phone || null,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
+        siteName: siteName || null,
+        siteAddress: siteAddress || null,
+        siteType: siteType || null,
       });
 
       res.status(201).json({
@@ -105,6 +138,36 @@ class UserController {
       res.status(200).json({
         success: true,
         message: 'User updated successfully',
+        data: sanitizeUser(user),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Engineer updates their own location (for nearest-engineer assignment)
+   */
+  static async updateMyLocation(req, res, next) {
+    try {
+      const { latitude, longitude } = req.body;
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+      const user = await User.update(parseInt(userId, 10), { latitude, longitude });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+      res.status(200).json({
+        success: true,
+        message: 'Location updated successfully',
         data: sanitizeUser(user),
       });
     } catch (error) {

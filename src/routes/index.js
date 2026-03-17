@@ -7,6 +7,7 @@ const { loginRules, changePasswordRules, validate: authValidate } = require('../
 const {
   createUserRules,
   updateUserRules,
+  updateLocationRules,
   idParamRules: userIdRules,
   validate: userValidate,
 } = require('../validators/userValidator');
@@ -18,6 +19,7 @@ const {
   getTicketsQueryRules,
   validate: ticketValidate,
 } = require('../validators/ticketValidator');
+const upload = require('../middleware/upload');
 
 const router = Router();
 
@@ -45,8 +47,10 @@ router.put('/auth/change-password', authenticateToken, changePasswordRules, auth
 
 // Users (public create for registration; protected CRUD for admin)
 router.post('/users', createUserRules, userValidate, UserController.createUser);
-router.get('/users', UserController.getAllUsers);
+router.get('/users/me', authenticateToken, UserController.getCurrentUser);
+router.get('/users', authenticateToken, authorizeRoles('Admin'), UserController.getAllUsers);
 router.get('/users/:id', authenticateToken, userIdRules, userValidate, UserController.getUserById);
+router.put('/users/me/location', authenticateToken, authorizeRoles('Engineer'), updateLocationRules, userValidate, UserController.updateMyLocation);
 router.put('/users/:id', authenticateToken, authorizeRoles('Admin'), updateUserRules, userValidate, UserController.updateUser);
 router.delete('/users/:id', authenticateToken, authorizeRoles('Admin'), userIdRules, userValidate, UserController.deleteUser);
 
@@ -75,6 +79,13 @@ router.post(
   ticketValidate,
   TicketController.createTicket
 );
+router.post(
+  '/tickets/with-image',
+  authenticateToken,
+  authorizeRoles('User', 'Admin'),
+  upload.single('image'),
+  TicketController.createTicketWithImage
+);
 router.put(
   '/tickets/:id',
   authenticateToken,
@@ -90,6 +101,14 @@ router.put(
   assignTicketRules,
   ticketValidate,
   TicketController.assignTicket
+);
+router.put(
+  '/tickets/:id/feedback',
+  authenticateToken,
+  authorizeRoles('User', 'Admin'),
+  ticketIdRules,
+  ticketValidate,
+  TicketController.submitFeedback
 );
 router.delete(
   '/tickets/:id',

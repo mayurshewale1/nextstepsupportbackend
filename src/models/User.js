@@ -12,8 +12,8 @@ function sanitizeUser(user) {
 class User {
   static async create(user) {
     const result = await Database.query(
-      `INSERT INTO users (user_id, email, password, name, role, phone)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         user.userId || user.user_id,
@@ -22,6 +22,11 @@ class User {
         user.name || '',
         user.role || 'user',
         user.phone || null,
+        user.latitude ?? null,
+        user.longitude ?? null,
+        user.siteName || user.site_name || null,
+        user.siteAddress || user.site_address || null,
+        user.siteType || user.site_type || null,
       ]
     );
     return result.rows[0];
@@ -63,7 +68,7 @@ class User {
   }
 
   static async getAll(filters = {}) {
-    let query = 'SELECT id, user_id, email, name, role, phone, is_active, created_at, updated_at FROM users WHERE 1=1';
+    let query = 'SELECT id, user_id, email, name, role, phone, latitude, longitude, site_name, site_address, site_type, is_active, created_at, updated_at FROM users WHERE 1=1';
     const params = [];
     let paramIndex = 1;
 
@@ -84,13 +89,16 @@ class User {
   }
 
   static async update(id, user) {
-    const allowed = ['name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id'];
+    const allowed = ['name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id', 'latitude', 'longitude', 'site_name', 'site_address', 'site_type'];
     const updates = [];
     const values = [];
     let paramIndex = 1;
 
     for (const key of Object.keys(user)) {
-      const col = key === 'userId' ? 'user_id' : key;
+      let col = key === 'userId' ? 'user_id' : key;
+      if (key === 'siteName') col = 'site_name';
+      if (key === 'siteAddress') col = 'site_address';
+      if (key === 'siteType') col = 'site_type';
       if (allowed.includes(col) && user[key] !== undefined) {
         updates.push(`${col} = $${paramIndex}`);
         values.push(user[key]);
