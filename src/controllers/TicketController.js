@@ -190,6 +190,10 @@ class TicketController {
         data: ticket,
       });
     } catch (error) {
+      console.error('[createTicketWithImage]', error.message);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(error.stack);
+      }
       next(error);
     }
   }

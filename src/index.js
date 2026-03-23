@@ -25,19 +25,8 @@ try {
 
 // Security middleware
 app.use(helmet());
-// CORS: allow mobile apps (no origin) + configured origins
-const corsOptions = {
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // Mobile apps, Postman, etc.
-    const allowed = (config.corsOrigin || '').split(',').map((o) => o.trim()).filter(Boolean);
-    if (allowed.length === 0 || allowed.includes('*') || allowed.includes(origin)) {
-      return cb(null, true);
-    }
-    cb(null, false);
-  },
-  credentials: true,
-};
-app.use(cors(corsOptions));
+// CORS: allow any origin so web app works from anywhere (localhost, Vercel, IP, deployed URL)
+app.use(cors({ origin: true, credentials: true }));
 
 // Rate limiting
 const limiter = rateLimit({

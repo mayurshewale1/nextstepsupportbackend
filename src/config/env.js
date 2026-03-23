@@ -6,7 +6,9 @@ const config = {
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET || 'your_secret_key',
   jwtExpire: process.env.JWT_EXPIRE || '7d',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  corsOrigin:
+    process.env.CORS_ORIGIN ||
+    'http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000,https://nextstep.mayurr.in,https://www.nextstep.mayurr.in',
   apiVersion: process.env.API_VERSION || 'v1',
   isProduction: process.env.NODE_ENV === 'production',
 };
