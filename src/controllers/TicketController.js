@@ -1,6 +1,7 @@
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { emitTicketCreated, emitTicketAssigned, emitTicketUpdated } = require('../socket');
+const { notifyRoles, notifyUsers } = require('../services/firebase');
 
 /**
  * Haversine formula: distance in km between two lat/lng points
@@ -43,6 +44,64 @@ async function findNearestEngineer(userLat, userLon) {
 }
 
 class TicketController {
+  static async sendCreateNotifications(ticket) {
+    const title = 'New Complaint Created';
+    const body = `Complaint #${ticket.id} has been created.`;
+    await notifyRoles(['admin'], {
+      notification: { title, body },
+      data: { type: 'ticket_created', ticketId: String(ticket.id) },
+    });
+
+    if (ticket.assigned_to) {
+      await notifyUsers([ticket.assigned_to], {
+        notification: {
+          title: 'New Complaint Assigned',
+          body: `Complaint #${ticket.id} is assigned to you.`,
+        },
+        data: { type: 'ticket_assigned', ticketId: String(ticket.id) },
+      });
+    }
+  }
+
+  static async sendAssignedNotifications(ticket) {
+    await notifyUsers([ticket.assigned_to], {
+      notification: {
+        title: 'Complaint Assigned',
+        body: `Complaint #${ticket.id} has been assigned to you.`,
+      },
+      data: { type: 'ticket_assigned', ticketId: String(ticket.id) },
+    });
+
+    await notifyRoles(['admin'], {
+      notification: {
+        title: 'Complaint Assignment Updated',
+        body: `Complaint #${ticket.id} assignment updated.`,
+      },
+      data: { type: 'ticket_updated', ticketId: String(ticket.id) },
+    });
+  }
+
+  static async sendUpdateNotifications(ticket) {
+    const isResolved = ticket.status === 'resolved' || ticket.status === 'closed';
+    const recipientIds = [ticket.created_by, ticket.assigned_to].filter(Boolean);
+
+    await notifyRoles(['admin'], {
+      notification: {
+        title: isResolved ? 'Complaint Resolved' : 'Complaint Progress Updated',
+        body: `Complaint #${ticket.id} status: ${ticket.status}`,
+      },
+      data: { type: isResolved ? 'ticket_resolved' : 'ticket_updated', ticketId: String(ticket.id) },
+    });
+
+    await notifyUsers(recipientIds, {
+      notification: {
+        title: isResolved ? 'Complaint Resolved' : 'Complaint Updated',
+        body: `Complaint #${ticket.id} status: ${ticket.status}`,
+      },
+      data: { type: isResolved ? 'ticket_resolved' : 'ticket_updated', ticketId: String(ticket.id) },
+    });
+  }
+
   static async getTickets(req, res, next) {
     try {
       const { period, startDate, endDate, status, assignedTo } = req.query;
@@ -122,6 +181,9 @@ class TicketController {
         : 'Ticket created successfully';
 
       emitTicketCreated(ticket);
+      TicketController.sendCreateNotifications(ticket).catch((e) => {
+        console.error('[FCM] create notification error:', e.message);
+      });
 
       res.status(201).json({
         success: true,
@@ -183,6 +245,9 @@ class TicketController {
         : 'Ticket created successfully';
 
       emitTicketCreated(ticket);
+      TicketController.sendCreateNotifications(ticket).catch((e) => {
+        console.error('[FCM] create-with-image notification error:', e.message);
+      });
 
       res.status(201).json({
         success: true,
@@ -228,6 +293,9 @@ class TicketController {
         });
       }
       emitTicketUpdated(ticket);
+      TicketController.sendUpdateNotifications(ticket).catch((e) => {
+        console.error('[FCM] update notification error:', e.message);
+      });
       res.status(200).json({
         success: true,
         message: 'Ticket updated successfully',
@@ -256,6 +324,9 @@ class TicketController {
         });
       }
       emitTicketAssigned(ticket);
+      TicketController.sendAssignedNotifications(ticket).catch((e) => {
+        console.error('[FCM] assign notification error:', e.message);
+      });
       res.status(200).json({
         success: true,
         message: 'Ticket assigned successfully',

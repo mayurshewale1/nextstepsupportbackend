@@ -2,6 +2,7 @@ const { Router } = require('express');
 const UserController = require('../controllers/UserController');
 const AuthController = require('../controllers/AuthController');
 const TicketController = require('../controllers/TicketController');
+const NotificationController = require('../controllers/NotificationController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { loginRules, changePasswordRules, validate: authValidate } = require('../validators/authValidator');
 const {
@@ -53,6 +54,20 @@ router.get('/users/:id', authenticateToken, userIdRules, userValidate, UserContr
 router.put('/users/me/location', authenticateToken, authorizeRoles('Engineer'), updateLocationRules, userValidate, UserController.updateMyLocation);
 router.put('/users/:id', authenticateToken, authorizeRoles('Admin'), updateUserRules, userValidate, UserController.updateUser);
 router.delete('/users/:id', authenticateToken, authorizeRoles('Admin'), userIdRules, userValidate, UserController.deleteUser);
+
+// Notification device tokens
+router.post(
+  '/notifications/device-token',
+  authenticateToken,
+  authorizeRoles('Admin', 'Engineer', 'User'),
+  NotificationController.registerDeviceToken
+);
+router.delete(
+  '/notifications/device-token',
+  authenticateToken,
+  authorizeRoles('Admin', 'Engineer', 'User'),
+  NotificationController.unregisterDeviceToken
+);
 
 // Tickets
 router.get(
