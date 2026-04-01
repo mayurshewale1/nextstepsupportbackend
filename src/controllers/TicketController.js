@@ -384,6 +384,10 @@ class TicketController {
         });
       }
       const updated = await Ticket.update(parseInt(id, 10), updates);
+      
+      // Emit ticket updated event for feedback submission
+      emitTicketUpdated(updated);
+      
       res.status(200).json({
         success: true,
         message: 'Feedback submitted successfully',
