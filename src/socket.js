@@ -41,8 +41,19 @@ function emitTicketCreated(ticket) {
 
 function emitTicketAssigned(ticket) {
   if (io && ticket.assigned_to) {
+    console.log('[SOCKET] Emitting ticket:assigned to engineer:', ticket.assigned_to);
+    console.log('[SOCKET] Ticket data:', JSON.stringify(ticket, null, 2));
+    
+    // Send to assigned engineer
     io.to(`engineer:${ticket.assigned_to}`).emit('ticket:assigned', ticket);
-    io.to('admin').emit('ticket:updated', ticket);
+    
+    // Send to all admins as ticket:assigned (so they can see assignment notifications)
+    io.to('admin').emit('ticket:assigned', ticket);
+    
+    // Also send to the user who created the ticket
+    if (ticket.created_by) {
+      io.to(`user:${ticket.created_by}`).emit('ticket:updated', ticket);
+    }
   }
 }
 

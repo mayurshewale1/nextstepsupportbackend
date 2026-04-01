@@ -316,17 +316,29 @@ class TicketController {
           message: 'assignedTo is required',
         });
       }
+      
+      // Get engineer details for notification
+      const engineer = await User.findById(assignedTo);
       const ticket = await Ticket.assign(parseInt(id, 10), assignedTo);
+      
       if (!ticket) {
         return res.status(404).json({
           success: false,
           message: 'Ticket not found',
         });
       }
+      
+      // Add engineer details to ticket for notification
+      ticket.engineer_name = engineer ? engineer.name : null;
+      ticket.engineerName = engineer ? engineer.name : null;
+      
+      console.log('[ASSIGN] Emitting ticket:assigned with engineer:', engineer?.name);
+      
       emitTicketAssigned(ticket);
       TicketController.sendAssignedNotifications(ticket).catch((e) => {
         console.error('[FCM] assign notification error:', e.message);
       });
+      
       res.status(200).json({
         success: true,
         message: 'Ticket assigned successfully',
