@@ -296,15 +296,18 @@ class TicketController {
         });
       }
 
-      // Check if trying to mark as completed without feedback
+      // Check if trying to mark as resolved without feedback (but allow completed)
       if ((updates.status === 'resolved' || updates.status === 'closed') && 
           (!existing.rating && !existing.feedback_comment)) {
         return res.status(400).json({
           success: false,
-          message: 'Ticket cannot be marked as completed until feedback is submitted by the customer.',
+          message: 'Ticket cannot be marked as resolved until feedback is submitted by customer.',
           requireFeedback: true,
         });
       }
+
+      // Allow engineers to mark as "completed" without feedback requirement
+      // Only "resolved" status requires feedback
 
       const ticket = await Ticket.update(parseInt(id, 10), updates);
       if (!ticket) {
@@ -314,16 +317,19 @@ class TicketController {
         });
       }
 
-      // If ticket is being completed, send notification to user to provide feedback
-      if ((updates.status === 'resolved' || updates.status === 'closed') && 
+      // If ticket is being marked as resolved and has feedback, auto-convert completed to resolved
+      if ((updates.status === 'resolved') && 
           (existing.rating || existing.feedback_comment)) {
-        // Send completion notification
-        await TicketController.sendUpdateNotifications(ticket);
-      } else {
-        emitTicketUpdated(ticket);
-        TicketController.sendUpdateNotifications(ticket).catch((e) => {
-          console.error('[FCM] update notification error:', e.message);
-        });
+        // This is good - ticket is being resolved with feedback
+      }
+      
+      // If ticket is being updated and was "completed", auto-convert to "resolved" when feedback is given
+      if ((updates.status === 'resolved' || updates.status === 'closed') && 
+          existing.rating && existing.feedback_comment) {
+        // If the ticket was "completed" and now has feedback, convert to "resolved"
+        if (existing.status === 'completed') {
+          updates.status = 'resolved';
+        }
       }
 
       res.status(200).json({
