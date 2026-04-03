@@ -35,6 +35,17 @@ const idParamRules = [
   param('id').isInt({ min: 1 }).withMessage('Invalid user ID'),
 ];
 
+const resetPasswordRules = [
+  param('id').isInt({ min: 1 }).withMessage('Invalid user ID'),
+  body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+];
+
+const bulkResetPasswordRules = [
+  body('userIds').isArray({ min: 1 }).withMessage('User IDs array is required'),
+  body('userIds.*').isInt({ min: 1 }).withMessage('Invalid user ID in array'),
+  body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+];
+
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (errors.isEmpty()) return next();
@@ -45,4 +56,12 @@ const validate = (req, res, next) => {
   });
 };
 
-module.exports = { createUserRules, updateUserRules, updateLocationRules, idParamRules, validate };
+module.exports = { 
+  createUserRules, 
+  updateUserRules, 
+  updateLocationRules, 
+  idParamRules, 
+  resetPasswordRules,
+  bulkResetPasswordRules,
+  validate 
+};

@@ -10,6 +10,7 @@ const {
   updateUserRules,
   updateLocationRules,
   idParamRules: userIdRules,
+  resetPasswordRules,
   validate: userValidate,
 } = require('../validators/userValidator');
 const {
@@ -53,6 +54,8 @@ router.get('/users', authenticateToken, authorizeRoles('Admin'), UserController.
 router.get('/users/:id', authenticateToken, userIdRules, userValidate, UserController.getUserById);
 router.put('/users/me/location', authenticateToken, authorizeRoles('Engineer'), updateLocationRules, userValidate, UserController.updateMyLocation);
 router.put('/users/:id', authenticateToken, authorizeRoles('Admin'), updateUserRules, userValidate, UserController.updateUser);
+router.put('/users/:id/reset-password', authenticateToken, authorizeRoles('Admin'), resetPasswordRules, userValidate, UserController.resetUserPassword);
+router.post('/users/bulk-reset-password', authenticateToken, authorizeRoles('Admin'), UserController.bulkResetPasswords);
 router.delete('/users/:id', authenticateToken, authorizeRoles('Admin'), userIdRules, userValidate, UserController.deleteUser);
 
 // Notification device tokens

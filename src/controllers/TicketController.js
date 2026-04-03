@@ -102,6 +102,17 @@ class TicketController {
     });
   }
 
+  static async sendFeedbackRequestNotification(ticket) {
+    // Send notification to customer to provide feedback
+    await notifyUsers([ticket.created_by], {
+      notification: {
+        title: 'Please Fill Feedback Form',
+        body: `Your complaint #${ticket.id} has been resolved. Please provide your feedback.`,
+      },
+      data: { type: 'feedback_request', ticketId: String(ticket.id) },
+    });
+  }
+
   static async getTickets(req, res, next) {
     try {
       const { period, startDate, endDate, status, assignedTo } = req.query;
@@ -285,6 +296,16 @@ class TicketController {
         });
       }
 
+      // Check if trying to mark as completed without feedback
+      if ((updates.status === 'resolved' || updates.status === 'closed') && 
+          (!existing.rating && !existing.feedback_comment)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ticket cannot be marked as completed until feedback is submitted by the customer.',
+          requireFeedback: true,
+        });
+      }
+
       const ticket = await Ticket.update(parseInt(id, 10), updates);
       if (!ticket) {
         return res.status(404).json({
@@ -292,16 +313,26 @@ class TicketController {
           message: 'Ticket not found',
         });
       }
-      emitTicketUpdated(ticket);
-      TicketController.sendUpdateNotifications(ticket).catch((e) => {
-        console.error('[FCM] update notification error:', e.message);
-      });
+
+      // If ticket is being completed, send notification to user to provide feedback
+      if ((updates.status === 'resolved' || updates.status === 'closed') && 
+          (existing.rating || existing.feedback_comment)) {
+        // Send completion notification
+        await TicketController.sendUpdateNotifications(ticket);
+      } else {
+        emitTicketUpdated(ticket);
+        TicketController.sendUpdateNotifications(ticket).catch((e) => {
+          console.error('[FCM] update notification error:', e.message);
+        });
+      }
+
       res.status(200).json({
         success: true,
         message: 'Ticket updated successfully',
         data: ticket,
       });
     } catch (error) {
+      console.error('[updateTicket]', error.message);
       next(error);
     }
   }

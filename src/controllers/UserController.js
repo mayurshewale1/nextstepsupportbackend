@@ -193,6 +193,140 @@ class UserController {
       next(error);
     }
   }
+
+  /**
+   * Admin resets user password
+   */
+  static async resetUserPassword(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { newPassword } = req.body;
+
+      // Validate admin access
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Admin access required',
+        });
+      }
+
+      // Validate new password
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters long',
+        });
+      }
+
+      // Check if user exists
+      const user = await User.findById(parseInt(id, 10));
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+      // Update password
+      const updatedUser = await User.update(parseInt(id, 10), { password: hashedPassword });
+      
+      if (!updatedUser) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to reset password',
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Password reset successfully',
+        data: {
+          userId: user.userId,
+          role: user.role,
+          resetAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Admin bulk reset passwords for multiple users
+   */
+  static async bulkResetPasswords(req, res, next) {
+    try {
+      const { userIds, newPassword } = req.body;
+
+      // Validate admin access
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Admin access required',
+        });
+      }
+
+      // Validate inputs
+      if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'User IDs array is required',
+        });
+      }
+
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters long',
+        });
+      }
+
+      // Hash new password once
+      const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+      const results = [];
+      const errors = [];
+
+      // Process each user
+      for (const userId of userIds) {
+        try {
+          const user = await User.findById(parseInt(userId, 10));
+          if (!user) {
+            errors.push({ userId, error: 'User not found' });
+            continue;
+          }
+
+          const updatedUser = await User.update(parseInt(userId, 10), { password: hashedPassword });
+          if (updatedUser) {
+            results.push({
+              userId: user.userId,
+              role: user.role,
+              resetAt: new Date().toISOString(),
+            });
+          } else {
+            errors.push({ userId, error: 'Failed to reset password' });
+          }
+        } catch (error) {
+          errors.push({ userId, error: error.message });
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        message: `Password reset completed for ${results.length} users`,
+        data: {
+          reset: results,
+          errors: errors,
+          total: userIds.length,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = UserController;
