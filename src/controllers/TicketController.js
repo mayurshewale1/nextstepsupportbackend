@@ -236,7 +236,14 @@ class TicketController {
         assignedTo = await findNearestEngineer(latitude, longitude);
       }
 
-      const imagePath = req.file ? req.file.filename : null;
+      // Handle multiple images
+      let imagePaths = [];
+      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+        imagePaths = req.files.map(file => file.filename);
+      } else if (req.file) {
+        // Fallback for single file (backward compatibility)
+        imagePaths = [req.file.filename];
+      }
 
       const ticket = await Ticket.create({
         title,
@@ -248,7 +255,8 @@ class TicketController {
         assignedTo,
         latitude,
         longitude,
-        imagePath,
+        imagePath: imagePaths.length > 0 ? imagePaths[0] : null, // Keep single image_path for backward compatibility
+        imagePaths: imagePaths.length > 0 ? JSON.stringify(imagePaths) : null, // Store all images as JSON
       });
 
       const message = assignedTo
