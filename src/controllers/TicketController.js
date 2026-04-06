@@ -275,9 +275,42 @@ class TicketController {
       });
     } catch (error) {
       console.error('[createTicketWithImage]', error.message);
+      console.error('[createTicketWithImage] Stack:', error.stack);
+      
+      // Handle specific multer errors
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+          success: false,
+          message: 'File size too large. Maximum size is 10MB per file.',
+        });
+      }
+      
+      if (error.code === 'LIMIT_FILE_COUNT') {
+        return res.status(413).json({
+          success: false,
+          message: 'Too many files. Maximum is 5 files per ticket.',
+        });
+      }
+      
+      if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Unexpected file field. Please use "images" field.',
+        });
+      }
+      
+      // Handle file filter errors
+      if (error.message && error.message.includes('Only image files')) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      
       if (process.env.NODE_ENV !== 'production') {
         console.error(error.stack);
       }
+      
       next(error);
     }
   }
