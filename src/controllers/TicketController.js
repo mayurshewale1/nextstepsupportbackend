@@ -317,20 +317,8 @@ class TicketController {
         });
       }
 
-      // If ticket is being marked as resolved and has feedback, auto-convert completed to resolved
-      if ((updates.status === 'resolved') && 
-          (existing.rating || existing.feedback_comment)) {
-        // This is good - ticket is being resolved with feedback
-      }
-      
-      // If ticket is being updated and was "completed", auto-convert to "resolved" when feedback is given
-      if ((updates.status === 'resolved' || updates.status === 'closed') && 
-          existing.rating && existing.feedback_comment) {
-        // If the ticket was "completed" and now has feedback, convert to "resolved"
-        if (existing.status === 'completed') {
-          updates.status = 'resolved';
-        }
-      }
+      // Emit ticket updated event
+      emitTicketUpdated(ticket);
 
       res.status(200).json({
         success: true,
@@ -397,7 +385,7 @@ class TicketController {
           message: 'Ticket not found',
         });
       }
-      if (ticket.status !== 'resolved' && ticket.status !== 'closed') {
+      if (ticket.status !== 'completed' && ticket.status !== 'resolved' && ticket.status !== 'closed') {
         return res.status(400).json({
           success: false,
           message: 'Feedback can only be submitted for completed tickets',
@@ -414,6 +402,12 @@ class TicketController {
       const updates = {};
       if (rating != null && rating >= 1 && rating <= 5) updates.rating = rating;
       if (feedbackComment != null) updates.feedback_comment = feedbackComment;
+      
+      // Auto-convert "completed" to "resolved" when feedback is submitted
+      if (ticket.status === 'completed') {
+        updates.status = 'resolved';
+      }
+      
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({
           success: false,
@@ -425,9 +419,14 @@ class TicketController {
       // Emit ticket updated event for feedback submission
       emitTicketUpdated(updated);
       
+      // Check if status was auto-converted
+      const statusChanged = ticket.status === 'completed' && updated.status === 'resolved';
+      
       res.status(200).json({
         success: true,
-        message: 'Feedback submitted successfully',
+        message: statusChanged 
+          ? 'Feedback submitted successfully! Ticket marked as resolved.'
+          : 'Feedback submitted successfully',
         data: updated,
       });
     } catch (error) {

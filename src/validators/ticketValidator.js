@@ -13,7 +13,7 @@ const updateTicketRules = [
   param('id').isInt({ min: 1 }).withMessage('Invalid ticket ID'),
   body('title').optional().trim().notEmpty(),
   body('description').optional().trim().notEmpty(),
-  body('status').optional().isIn(['open', 'in-progress', 'resolved', 'closed']),
+  body('status').optional().isIn(['open', 'in-progress', 'completed', 'resolved', 'closed']),
   body('priority').optional().isIn(['low', 'medium', 'high']),
   body('category').optional().trim(),
   body('assigned_to').optional().isInt({ min: 1 }),
@@ -33,7 +33,7 @@ const getTicketsQueryRules = [
   query('period').optional().isIn(['today', 'yesterday', 'weekly', 'monthly', 'yearly']),
   query('startDate').optional().isISO8601(),
   query('endDate').optional().isISO8601(),
-  query('status').optional().isIn(['open', 'in-progress', 'resolved', 'closed']),
+  query('status').optional().isIn(['open', 'in-progress', 'completed', 'resolved', 'closed']),
 ];
 
 const validate = (req, res, next) => {

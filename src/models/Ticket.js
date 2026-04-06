@@ -1,6 +1,6 @@
 const Database = require('../config/database');
 
-const VALID_STATUS = ['open', 'in-progress', 'resolved', 'closed'];
+const VALID_STATUS = ['open', 'in-progress', 'completed', 'resolved', 'closed'];
 const VALID_PRIORITY = ['low', 'medium', 'high'];
 
 class Ticket {
