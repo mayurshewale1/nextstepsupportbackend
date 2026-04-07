@@ -2,6 +2,7 @@ const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { emitTicketCreated, emitTicketAssigned, emitTicketUpdated } = require('../socket');
 const { notifyRoles, notifyUsers } = require('../services/firebase');
+const { sendWhatsApp, formatPhoneNumber } = require('../services/whatsappService');
 
 /**
  * Haversine formula: distance in km between two lat/lng points
@@ -187,6 +188,14 @@ class TicketController {
         longitude: longitude ?? null,
       });
 
+      // Generate service ID for WhatsApp
+      const serviceId = `NXP-SVC-${String(ticket.id).padStart(6, '0')}`;
+
+      // Get user details for WhatsApp
+      const user = await User.findById(createdBy);
+      const customerName = user?.name || 'Customer';
+      const phoneNumber = user?.phone ? formatPhoneNumber(user.phone) : null;
+
       const message = assignedTo
         ? 'Ticket created and assigned to nearest engineer'
         : 'Ticket created successfully';
@@ -195,6 +204,21 @@ class TicketController {
       TicketController.sendCreateNotifications(ticket).catch((e) => {
         console.error('[FCM] create notification error:', e.message);
       });
+
+      // Send WhatsApp acknowledgment (async - don't block response)
+      if (phoneNumber) {
+        sendWhatsApp(phoneNumber, customerName, serviceId, category).catch((error) => {
+          console.error('[WhatsApp] Failed to send acknowledgment:', error.message);
+          // Don't fail API response if WhatsApp fails
+        });
+      } else {
+        console.warn('[WhatsApp] No phone number available for user:', createdBy);
+      }
+
+      // Send email acknowledgment (async - don't block response)
+      // This can be integrated with existing email service if available
+      
+      console.log('[Notifications] Triggered WhatsApp and email acknowledgments for ticket:', serviceId);
 
       res.status(201).json({
         success: true,
@@ -259,6 +283,14 @@ class TicketController {
         imagePaths: imagePaths.length > 0 ? JSON.stringify(imagePaths) : null, // Store all images as JSON
       });
 
+      // Generate service ID for WhatsApp
+      const serviceId = `NXP-SVC-${String(ticket.id).padStart(6, '0')}`;
+
+      // Get user details for WhatsApp
+      const user = await User.findById(createdBy);
+      const customerName = user?.name || 'Customer';
+      const phoneNumber = user?.phone ? formatPhoneNumber(user.phone) : null;
+
       const message = assignedTo
         ? 'Ticket created and assigned to nearest engineer'
         : 'Ticket created successfully';
@@ -267,6 +299,21 @@ class TicketController {
       TicketController.sendCreateNotifications(ticket).catch((e) => {
         console.error('[FCM] create-with-image notification error:', e.message);
       });
+
+      // Send WhatsApp acknowledgment (async - don't block response)
+      if (phoneNumber) {
+        sendWhatsApp(phoneNumber, customerName, serviceId, category).catch((error) => {
+          console.error('[WhatsApp] Failed to send acknowledgment:', error.message);
+          // Don't fail the API response if WhatsApp fails
+        });
+      } else {
+        console.warn('[WhatsApp] No phone number available for user:', createdBy);
+      }
+
+      // Send email acknowledgment (async - don't block response)
+      // This can be integrated with existing email service if available
+      
+      console.log('[Notifications] Triggered WhatsApp and email acknowledgments for ticket:', serviceId);
 
       res.status(201).json({
         success: true,
