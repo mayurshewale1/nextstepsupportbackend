@@ -202,8 +202,8 @@ class UserController {
       const { id } = req.params;
       const { newPassword } = req.body;
 
-      // Validate access (Admin or Engineer)
-      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'engineer')) {
+      // Validate access (Admin or Engineer) - case insensitive
+      if (!req.user || (req.user.role.toLowerCase() !== 'admin' && req.user.role.toLowerCase() !== 'engineer')) {
         return res.status(403).json({
           success: false,
           message: 'Admin or Engineer access required',
