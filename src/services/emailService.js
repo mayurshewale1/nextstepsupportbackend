@@ -43,7 +43,9 @@ const sendEmail = async (email, customerName, serviceId, category) => {
       },
       tls: {
         rejectUnauthorized: false
-      }
+      },
+      connectionTimeout: 30000, // 30 seconds timeout
+      greetingTimeout: 10000, // 10 seconds timeout
     });
 
     // Prepare email content
