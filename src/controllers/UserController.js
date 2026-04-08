@@ -195,18 +195,18 @@ class UserController {
   }
 
   /**
-   * Admin resets user password
+   * Admin or Engineer resets user password
    */
   static async resetUserPassword(req, res, next) {
     try {
       const { id } = req.params;
       const { newPassword } = req.body;
 
-      // Validate admin access
-      if (!req.user || req.user.role !== 'admin') {
+      // Validate access (Admin or Engineer)
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'engineer')) {
         return res.status(403).json({
           success: false,
-          message: 'Admin access required',
+          message: 'Admin or Engineer access required',
         });
       }
 
