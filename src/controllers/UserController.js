@@ -202,11 +202,14 @@ class UserController {
       const { id } = req.params;
       const { newPassword } = req.body;
 
-      // Validate access (Admin or Engineer) - case insensitive
-      if (!req.user || (req.user.role.toLowerCase() !== 'admin' && req.user.role.toLowerCase() !== 'engineer')) {
+      // Validate access (Admin, Engineer, or User resetting own password) - case insensitive
+      const userRole = req.user ? req.user.role.toLowerCase() : '';
+      const isOwnPassword = req.user && parseInt(req.user.id) === parseInt(id);
+      
+      if (!req.user || (userRole !== 'admin' && userRole !== 'engineer' && !isOwnPassword)) {
         return res.status(403).json({
           success: false,
-          message: 'Admin or Engineer access required',
+          message: 'Admin, Engineer, or own password reset required',
         });
       }
 
