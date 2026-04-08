@@ -233,8 +233,8 @@ class UserController {
       // Hash new password
       const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
-      // Update password
-      const updatedUser = await User.update(parseInt(id, 10), { password: hashedPassword });
+      // Update password using the dedicated updatePassword method
+      const updatedUser = await User.updatePassword(parseInt(id, 10), hashedPassword);
       
       if (!updatedUser) {
         return res.status(500).json({
