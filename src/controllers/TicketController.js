@@ -196,6 +196,7 @@ class TicketController {
       const user = await User.findById(createdBy);
       const customerName = user?.name || 'Customer';
       const phoneNumber = user?.phone ? formatPhoneNumber(user.phone) : null;
+      const customerEmail = user?.email || null;
 
       const message = assignedTo
         ? 'Ticket created and assigned to nearest engineer'
