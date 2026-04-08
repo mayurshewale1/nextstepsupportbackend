@@ -41,6 +41,9 @@ const sendEmail = async (email, customerName, serviceId, category) => {
         user: EMAIL_USER,
         pass: EMAIL_PASS,
       },
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
     // Prepare email content
