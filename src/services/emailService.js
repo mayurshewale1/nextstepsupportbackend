@@ -33,7 +33,7 @@ const sendEmail = async (email, customerName, serviceId, category) => {
     }
 
     // Create transporter
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: EMAIL_HOST,
       port: EMAIL_PORT,
       secure: EMAIL_PORT === 465, // true for 465 (SSL), false for other ports
