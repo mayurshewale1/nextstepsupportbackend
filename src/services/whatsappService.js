@@ -35,28 +35,15 @@ const sendWhatsApp = async (phone, customerName, serviceId, category) => {
       throw new Error('Bigtos API key not configured in environment variables');
     }
 
-    // Prepare template message
-    const templateData = {
-      name: "complaint_ack_template",
-      language: { code: "en" },
-      components: [
-        {
-          type: "body",
-          parameters: [
-            { type: "text", text: customerName },
-            { type: "text", text: serviceId },
-            { type: "text", text: category || "general inquiry" }
-          ]
-        }
-      ]
-    };
+    // Prepare simple text message (temporary fix for template issues)
+    const messageText = `Hello ${customerName}, your ticket ${serviceId} for ${category || 'general inquiry'} has been received. We will address it soon. Thank you for contacting NextStep Support.`;
 
     // Prepare request payload
     const payload = {
       key: WHATSAPP_API_KEY,
       mobileno: phone,
-      msg: JSON.stringify(templateData),
-      type: "Template"
+      msg: messageText,
+      type: "Text"
     };
 
     console.log('[WhatsApp Service] Sending message:', {
@@ -64,7 +51,7 @@ const sendWhatsApp = async (phone, customerName, serviceId, category) => {
       serviceId,
       customerName,
       category,
-      template: 'complaint_ack_template'
+      type: 'Text'
     });
 
     // Make API request
