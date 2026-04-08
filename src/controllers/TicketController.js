@@ -3,6 +3,7 @@ const User = require('../models/User');
 const { emitTicketCreated, emitTicketAssigned, emitTicketUpdated } = require('../socket');
 const { notifyRoles, notifyUsers } = require('../services/firebase');
 const { sendWhatsApp, formatPhoneNumber } = require('../services/whatsappService');
+const { sendEmail } = require('../services/emailService');
 
 /**
  * Haversine formula: distance in km between two lat/lng points
@@ -216,7 +217,14 @@ class TicketController {
       }
 
       // Send email acknowledgment (async - don't block response)
-      // This can be integrated with existing email service if available
+      if (customerEmail) {
+        sendEmail(customerEmail, customerName, serviceId, category).catch((error) => {
+          console.error('[Email] Failed to send acknowledgment:', error.message);
+          // Don't fail API response if email fails
+        });
+      } else {
+        console.log('[Email] No customer email available for ticket:', serviceId);
+      }
       
       console.log('[Notifications] Triggered WhatsApp and email acknowledgments for ticket:', serviceId);
 
@@ -311,7 +319,14 @@ class TicketController {
       }
 
       // Send email acknowledgment (async - don't block response)
-      // This can be integrated with existing email service if available
+      if (customerEmail) {
+        sendEmail(customerEmail, customerName, serviceId, category).catch((error) => {
+          console.error('[Email] Failed to send acknowledgment:', error.message);
+          // Don't fail API response if email fails
+        });
+      } else {
+        console.log('[Email] No customer email available for ticket:', serviceId);
+      }
       
       console.log('[Notifications] Triggered WhatsApp and email acknowledgments for ticket:', serviceId);
 
