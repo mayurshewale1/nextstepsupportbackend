@@ -241,6 +241,10 @@ class TicketController {
 
   static async createTicketWithImage(req, res, next) {
     try {
+      console.log('[createTicketWithImage] Request received');
+      console.log('[createTicketWithImage] Files count:', req.files?.length || 0);
+      console.log('[createTicketWithImage] Files:', req.files);
+      console.log('[createTicketWithImage] Body:', req.body);
       const body = req.body || {};
       const title = body.title?.trim();
       const description = body.description?.trim();
@@ -304,41 +308,78 @@ class TicketController {
         ? 'Ticket created and assigned to nearest engineer'
         : 'Ticket created successfully';
 
-      emitTicketCreated(ticket);
-      TicketController.sendCreateNotifications(ticket).catch((e) => {
-        console.error('[FCM] create-with-image notification error:', e.message);
+      try {
+        emitTicketCreated(ticket);
+      } catch (socketError) {
+        console.error('[Socket] Error emitting ticket created:', socketError.message);
+      }
+      
+      // Send notifications asynchronously - don't let notification errors fail the ticket creation
+      setImmediate(() => {
+        try {
+          TicketController.sendCreateNotifications(ticket).catch((e) => {
+            console.error('[FCM] create-with-image notification error:', e.message);
+          });
+        } catch (notificationError) {
+          console.error('[FCM] Error in notification process:', notificationError.message);
+        }
       });
 
       // Send WhatsApp acknowledgment (async - don't block response)
-      if (phoneNumber) {
-        sendWhatsApp(phoneNumber, customerName, serviceId, category).catch((error) => {
-          console.error('[WhatsApp] Failed to send acknowledgment:', error.message);
-          // Don't fail the API response if WhatsApp fails
-        });
-      } else {
-        console.warn('[WhatsApp] No phone number available for user:', createdBy);
+      try {
+        if (phoneNumber) {
+          sendWhatsApp(phoneNumber, customerName, serviceId, category).catch((error) => {
+            console.error('[WhatsApp] Failed to send acknowledgment:', error.message);
+            // Don't fail the API response if WhatsApp fails
+          });
+        } else {
+          console.warn('[WhatsApp] No phone number available for user:', createdBy);
+        }
+      } catch (whatsappError) {
+        console.error('[WhatsApp] Error in WhatsApp process:', whatsappError.message);
       }
 
       // Send email acknowledgment (async - don't block response)
-      if (customerEmail) {
-        sendEmail(customerEmail, customerName, serviceId, category).catch((error) => {
-          console.error('[Email] Failed to send acknowledgment:', error.message);
-          // Don't fail API response if email fails
-        });
-      } else {
-        console.log('[Email] No customer email available for ticket:', serviceId);
+      try {
+        if (customerEmail) {
+          sendEmail(customerEmail, customerName, serviceId, category).catch((error) => {
+            console.error('[Email] Failed to send acknowledgment:', error.message);
+            // Don't fail API response if email fails
+          });
+        } else {
+          console.log('[Email] No customer email available for ticket:', serviceId);
+        }
+      } catch (emailError) {
+        console.error('[Email] Error in email process:', emailError.message);
       }
       
       console.log('[Notifications] Triggered WhatsApp and email acknowledgments for ticket:', serviceId);
 
-      res.status(201).json({
-        success: true,
-        message,
-        data: ticket,
-      });
+      // CRITICAL: Always send success response after ticket creation
+      // This ensures the user gets confirmation even if notifications fail
+      try {
+        console.log('[createTicketWithImage] About to send success response');
+        res.status(201).json({
+          success: true,
+          message,
+          data: ticket,
+        });
+        console.log('[createTicketWithImage] Success response sent');
+      } catch (responseError) {
+        console.error('[Response] Error sending success response:', responseError.message);
+        // Try to send a basic response if the main one fails
+        if (!res.headersSent) {
+          res.status(201).json({
+            success: true,
+            message: 'Ticket created successfully',
+            data: ticket,
+          });
+        }
+      }
     } catch (error) {
-      console.error('[createTicketWithImage]', error.message);
-      console.error('[createTicketWithImage] Stack:', error.stack);
+      console.error('[createTicketWithImage] ERROR:', error.message);
+      console.error('[createTicketWithImage] ERROR TYPE:', error.constructor.name);
+      console.error('[createTicketWithImage] ERROR STACK:', error.stack);
       
       // Handle specific multer errors
       if (error.code === 'LIMIT_FILE_SIZE') {
@@ -370,11 +411,15 @@ class TicketController {
         });
       }
       
+      // For database errors or other unexpected errors
       if (process.env.NODE_ENV !== 'production') {
         console.error(error.stack);
       }
       
-      next(error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error. Please try again.',
+      });
     }
   }
 
