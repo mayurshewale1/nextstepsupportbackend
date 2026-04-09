@@ -50,68 +50,37 @@ const sendEmail = async (email, customerName, serviceId, category) => {
 
     // Prepare email content
     const emailSubject = `Complaint Acknowledgment - ${serviceId}`;
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px;">NextStep Support</h1>
-          <p style="margin: 10px 0; font-size: 16px; opacity: 0.9;">Complaint Acknowledgment</p>
-        </div>
-        
-        <div style="background: #f8f9fa; padding: 30px; border-radius: 10px; margin: 20px 0;">
-          <h2 style="color: #333; margin-bottom: 20px;">Hello ${customerName},</h2>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            Thank you for contacting NextStep Support. We have successfully received your complaint and our team is working on it.
-          </p>
-          
-          <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea;">
-            <h3 style="color: #333; margin-top: 0;">Complaint Details:</h3>
-            <p style="margin: 10px 0;"><strong>Service ID:</strong> ${serviceId}</p>
-            <p style="margin: 10px 0;"><strong>Category:</strong> ${category || 'General Inquiry'}</p>
-            <p style="margin: 10px 0;"><strong>Status:</strong> <span style="color: #28a745;">Received and Under Review</span></p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin: 20px 0;">
-            Our support team will review your complaint and get back to you shortly. You can track the status of your complaint using the Service ID mentioned above.
-          </p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://nextstep.mayurr.in" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Track Your Complaint
-            </a>
-          </div>
-        </div>
-        
-        <div style="text-align: center; color: #999; font-size: 12px; margin-top: 30px;">
-          <p>This is an automated message. Please do not reply to this email.</p>
-          <p>&copy; 2026 NextStep Support. All rights reserved.</p>
-        </div>
-      </div>
-    `;
+    
+    // Simple message like WhatsApp
+    const messageText = `Hello ${customerName}, your ticket ${serviceId} for ${category || 'general inquiry'} has been received. We will address it soon. Thank you for contacting Ultratech IT Support.`;
 
     const emailText = `
-      NextStep Support - Complaint Acknowledgment
-      
-      Hello ${customerName},
-      
-      Thank you for contacting NextStep Support. We have successfully received your complaint and our team is working on it.
-      
-      Complaint Details:
-      Service ID: ${serviceId}
-      Category: ${category || 'General Inquiry'}
-      Status: Received and Under Review
-      
-      Our support team will review your complaint and get back to you shortly. You can track the status of your complaint using the Service ID mentioned above.
-      
-      Visit https://nextstep.mayurr.in to track your complaint.
-      
-      This is an automated message. Please do not reply to this email.
-      © 2026 NextStep Support. All rights reserved.
+${messageText}
+
+Service ID: ${serviceId}
+Category: ${category || 'General Inquiry'}
+Status: Received
+
+This is an automated message. Please do not reply to this email.
+© 2026 Ultratech IT Support. All rights reserved.
+    `;
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.5;">${messageText}</p>
+        <div style="margin: 15px 0; padding: 10px; background: #f5f5f5; border-left: 3px solid #667eea;">
+          <p style="margin: 5px 0; font-size: 12px;"><strong>Service ID:</strong> ${serviceId}</p>
+          <p style="margin: 5px 0; font-size: 12px;"><strong>Category:</strong> ${category || 'General Inquiry'}</p>
+          <p style="margin: 5px 0; font-size: 12px;"><strong>Status:</strong> Received</p>
+        </div>
+        <p style="margin: 15px 0 5px 0; font-size: 11px; color: #666;">This is an automated message. Please do not reply to this email.</p>
+        <p style="margin: 5px 0; font-size: 11px; color: #666;">© 2026 Ultratech IT Support. All rights reserved.</p>
+      </div>
     `;
 
     // Send email
     const mailOptions = {
-      from: `"NextStep Support" <${FROM_EMAIL}>`,
+      from: `"Ultratech IT Support" <${FROM_EMAIL}>`,
       to: email,
       subject: emailSubject,
       text: emailText,
