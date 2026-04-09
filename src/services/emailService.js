@@ -52,7 +52,7 @@ const sendEmail = async (email, customerName, serviceId, category) => {
     const emailSubject = `Complaint Acknowledgment - ${serviceId}`;
     
     // Simple message like WhatsApp
-    const messageText = `Hello ${customerName}, your ticket ${serviceId} for ${category || 'general inquiry'} has been received. We will address it soon. Thank you for contacting Ultratech IT Support.`;
+    const messageText = `Hello ${customerName}, your ticket ${serviceId} for ${category || 'general inquiry'} has been received. We will address it soon. Thank you for contacting Nextstep Multiparking Support.`;
 
     const emailText = `
 ${messageText}
@@ -62,7 +62,7 @@ Category: ${category || 'General Inquiry'}
 Status: Received
 
 This is an automated message. Please do not reply to this email.
-© 2026 Ultratech IT Support. All rights reserved.
+© 2026 Nextstep Multiparking Support. All rights reserved.
     `;
 
     const emailHtml = `
@@ -74,13 +74,13 @@ This is an automated message. Please do not reply to this email.
           <p style="margin: 5px 0; font-size: 12px;"><strong>Status:</strong> Received</p>
         </div>
         <p style="margin: 15px 0 5px 0; font-size: 11px; color: #666;">This is an automated message. Please do not reply to this email.</p>
-        <p style="margin: 5px 0; font-size: 11px; color: #666;">© 2026 Ultratech IT Support. All rights reserved.</p>
+        <p style="margin: 5px 0; font-size: 11px; color: #666;">© 2026 Nextstep Multiparking Support. All rights reserved.</p>
       </div>
     `;
 
     // Send email
     const mailOptions = {
-      from: `"Ultratech IT Support" <${FROM_EMAIL}>`,
+      from: `"Nextstep Multiparking Support" <${FROM_EMAIL}>`,
       to: email,
       subject: emailSubject,
       text: emailText,
