@@ -196,7 +196,16 @@ class TicketController {
       const user = await User.findById(createdBy);
       const customerName = user?.name || 'Customer';
       const phoneNumber = user?.phone ? formatPhoneNumber(user.phone) : null;
-      const customerEmail = user?.email || null;
+      
+      // Extract customer email from user object or description field
+      let customerEmail = user?.email || null;
+      if (!customerEmail && ticket.description) {
+        // Extract email from description using regex
+        const emailMatch = ticket.description.match(/Email:\s*([^\s\n]+@[^\s\n]+\.[^\s\n]+)/);
+        if (emailMatch && emailMatch[1]) {
+          customerEmail = emailMatch[1].trim();
+        }
+      }
 
       const message = assignedTo
         ? 'Ticket created and assigned to nearest engineer'
@@ -303,6 +312,16 @@ class TicketController {
       const user = await User.findById(createdBy);
       const customerName = user?.name || 'Customer';
       const phoneNumber = user?.phone ? formatPhoneNumber(user.phone) : null;
+      
+      // Extract customer email from description field
+      let customerEmail = user?.email || null;
+      if (!customerEmail && description) {
+        // Extract email from description using regex
+        const emailMatch = description.match(/Email:\s*([^\s\n]+@[^\s\n]+\.[^\s\n]+)/);
+        if (emailMatch && emailMatch[1]) {
+          customerEmail = emailMatch[1].trim();
+        }
+      }
 
       const message = assignedTo
         ? 'Ticket created and assigned to nearest engineer'
