@@ -216,14 +216,14 @@ const sendOtpWhatsApp = async (phone, customerName, otp) => {
       data: response.data
     });
 
-    if (response.data && response.data.status === 'success') {
+    if (response.data && response.data.status && response.data.status.toLowerCase() === 'success') {
       return {
         success: true,
         message: 'OTP sent successfully via WhatsApp',
         data: response.data
       };
     } else {
-      throw new Error(response.data?.message || 'WhatsApp API returned error');
+      throw new Error((response.data && response.data.message) || 'WhatsApp API returned error');
     }
 
   } catch (error) {
