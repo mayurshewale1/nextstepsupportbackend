@@ -4,7 +4,7 @@ const createUserRules = [
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('name').optional().trim().isLength({ min: 1 }).withMessage('Name cannot be empty'),
-  body('role').optional().isIn(['admin', 'Admin', 'engineer', 'Engineer', 'user', 'User']).withMessage('Invalid role'),
+  body('role').optional().isIn(['admin', 'Admin', 'engineer', 'Engineer', 'user', 'User', 'area_head', 'Area Head']).withMessage('Invalid role'),
   body('phone').optional().trim(),
   body('userId').optional().trim(),
   body('latitude').optional().isFloat({ min: -90, max: 90 }),

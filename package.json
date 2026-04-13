@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.js",
     "test": "jest",
     "migrate": "node scripts/run-migrations.js",
+    "migrate:maintenance": "node migrations/010_add_preventive_maintenance.js",
     "seed": "node scripts/seed-admin.js"
   },
   "keywords": [
