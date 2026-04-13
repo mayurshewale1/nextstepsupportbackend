@@ -105,27 +105,34 @@ const sendWhatsApp = async (phone, customerName, serviceId, category) => {
  */
 const sendStatusUpdate = async (phone, customerName, serviceId, status) => {
   try {
-    const templateData = {
-      name: "status_update_template", // This template should be created in Bigtos
-      language: { code: "en" },
-      components: [
-        {
-          type: "body",
-          parameters: [
-            { type: "text", text: customerName },
-            { type: "text", text: serviceId },
-            { type: "text", text: status }
-          ]
-        }
-      ]
-    };
+    if (!phone || !customerName || !serviceId || !status) {
+      throw new Error('Missing required parameters: phone, customerName, serviceId, status');
+    }
+
+    if (!phone.match(/^\d{10,15}$/)) {
+      throw new Error('Invalid phone number format. Must include country code (91XXXXXXXXXX)');
+    }
+
+    if (!WHATSAPP_API_KEY) {
+      throw new Error('Bigtos API key not configured in environment variables');
+    }
+
+    const statusLabel = status.charAt(0).toUpperCase() + status.slice(1).replace(/-/g, ' ');
+    const messageText = `Hello ${customerName}, your complaint ${serviceId} has been updated. Current status: ${statusLabel}. Thank you for contacting NextStep Support.`;
 
     const payload = {
       key: WHATSAPP_API_KEY,
       mobileno: phone,
-      msg: JSON.stringify(templateData),
-      type: "Template"
+      msg: messageText,
+      type: "Text"
     };
+
+    console.log('[WhatsApp Service] Sending status update:', {
+      to: phone,
+      serviceId,
+      customerName,
+      status
+    });
 
     const response = await axios.post(WHATSAPP_API_URL, qs.stringify(payload), {
       headers: {
@@ -134,17 +141,99 @@ const sendStatusUpdate = async (phone, customerName, serviceId, status) => {
       timeout: 30000
     });
 
-    return {
-      success: true,
-      message: 'WhatsApp status update sent successfully',
+    console.log('[WhatsApp Service] Status update response:', {
+      status: response.status,
       data: response.data
-    };
+    });
+
+    if (response.data && response.data.status === 'success') {
+      return {
+        success: true,
+        message: 'WhatsApp status update sent successfully',
+        data: response.data
+      };
+    } else {
+      throw new Error(response.data?.message || 'WhatsApp API returned error');
+    }
 
   } catch (error) {
-    console.error('[WhatsApp Service] Error sending status update:', error.message);
+    console.error('[WhatsApp Service] Error sending status update:', {
+      error: error.message,
+      phone: phone?.substring(0, 6) + '****',
+      serviceId
+    });
     return {
       success: false,
       message: error.message || 'Failed to send WhatsApp status update'
+    };
+  }
+};
+
+/**
+ * Send OTP via WhatsApp for admin login
+ * @param {string} phone - User phone number
+ * @param {string} customerName - Admin's name
+ * @param {string} otp - 6-digit OTP
+ * @returns {Promise<{success: boolean, message: string, data?: any}>}
+ */
+const sendOtpWhatsApp = async (phone, customerName, otp) => {
+  try {
+    if (!phone || !customerName || !otp) {
+      throw new Error('Missing required parameters: phone, customerName, otp');
+    }
+
+    if (!phone.match(/^\d{10,15}$/)) {
+      throw new Error('Invalid phone number format. Must include country code (91XXXXXXXXXX)');
+    }
+
+    if (!WHATSAPP_API_KEY) {
+      throw new Error('Bigtos API key not configured in environment variables');
+    }
+
+    const messageText = `Hello ${customerName}, your NextStep Admin login OTP is: *${otp}*. This OTP is valid for 10 minutes. Do not share it with anyone.`;
+
+    const payload = {
+      key: WHATSAPP_API_KEY,
+      mobileno: phone,
+      msg: messageText,
+      type: "Text"
+    };
+
+    console.log('[WhatsApp Service] Sending OTP:', {
+      to: phone,
+      customerName,
+    });
+
+    const response = await axios.post(WHATSAPP_API_URL, qs.stringify(payload), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      timeout: 30000
+    });
+
+    console.log('[WhatsApp Service] OTP response:', {
+      status: response.status,
+      data: response.data
+    });
+
+    if (response.data && response.data.status === 'success') {
+      return {
+        success: true,
+        message: 'OTP sent successfully via WhatsApp',
+        data: response.data
+      };
+    } else {
+      throw new Error(response.data?.message || 'WhatsApp API returned error');
+    }
+
+  } catch (error) {
+    console.error('[WhatsApp Service] Error sending OTP:', {
+      error: error.message,
+      phone: phone?.substring(0, 6) + '****',
+    });
+    return {
+      success: false,
+      message: error.message || 'Failed to send OTP'
     };
   }
 };
@@ -174,5 +263,6 @@ const formatPhoneNumber = (phone) => {
 module.exports = {
   sendWhatsApp,
   sendStatusUpdate,
+  sendOtpWhatsApp,
   formatPhoneNumber
 };

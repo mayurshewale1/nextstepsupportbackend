@@ -12,8 +12,8 @@ function sanitizeUser(user) {
 class User {
   static async create(user) {
     const result = await Database.query(
-      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, car_count, system_quantity, state, area, area_head_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         user.userId || user.user_id,
@@ -27,6 +27,12 @@ class User {
         user.siteName || user.site_name || null,
         user.siteAddress || user.site_address || null,
         user.siteType || user.site_type || null,
+        user.systemType || user.system_type || null,
+        user.carCount || user.car_count ?? null,
+        user.systemQuantity || user.system_quantity ?? null,
+        user.state || null,
+        user.area || null,
+        user.areaHeadId || user.area_head_id ?? null,
       ]
     );
     return result.rows[0];
@@ -57,6 +63,19 @@ class User {
   }
 
   /**
+   * Find all area heads for dropdown selection
+   */
+  static async findAreaHeads() {
+    const result = await Database.query(
+      `SELECT id, user_id, email, name, role, phone, state, area, is_active 
+       FROM users 
+       WHERE LOWER(role) = 'area_head' AND is_active = true 
+       ORDER BY name ASC`
+    );
+    return result.rows;
+  }
+
+  /**
    * Find by user_id OR email (for login)
    */
   static async findByUserIdOrEmail(userIdOrEmail) {
@@ -68,7 +87,7 @@ class User {
   }
 
   static async getAll(filters = {}) {
-    let query = 'SELECT id, user_id, email, name, role, phone, latitude, longitude, site_name, site_address, site_type, is_active, created_at, updated_at FROM users WHERE 1=1';
+    let query = 'SELECT id, user_id, email, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, car_count, system_quantity, state, area, area_head_id, is_active, created_at, updated_at FROM users WHERE 1=1';
     const params = [];
     let paramIndex = 1;
 
@@ -89,7 +108,7 @@ class User {
   }
 
   static async update(id, user) {
-    const allowed = ['name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id', 'latitude', 'longitude', 'site_name', 'site_address', 'site_type'];
+    const allowed = ['name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id', 'latitude', 'longitude', 'site_name', 'site_address', 'site_type', 'system_type', 'car_count', 'system_quantity', 'state', 'area', 'area_head_id'];
     const updates = [];
     const values = [];
     let paramIndex = 1;
@@ -99,6 +118,10 @@ class User {
       if (key === 'siteName') col = 'site_name';
       if (key === 'siteAddress') col = 'site_address';
       if (key === 'siteType') col = 'site_type';
+      if (key === 'systemType') col = 'system_type';
+      if (key === 'carCount') col = 'car_count';
+      if (key === 'systemQuantity') col = 'system_quantity';
+      if (key === 'areaHeadId') col = 'area_head_id';
       if (allowed.includes(col) && user[key] !== undefined) {
         updates.push(`${col} = $${paramIndex}`);
         values.push(user[key]);

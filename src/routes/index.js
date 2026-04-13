@@ -2,6 +2,7 @@ const { Router } = require('express');
 const UserController = require('../controllers/UserController');
 const AuthController = require('../controllers/AuthController');
 const TicketController = require('../controllers/TicketController');
+const VisitController = require('../controllers/VisitController');
 const NotificationController = require('../controllers/NotificationController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { loginRules, changePasswordRules, validate: authValidate } = require('../validators/authValidator');
@@ -45,12 +46,15 @@ router.get('/info', (req, res) => {
 
 // Auth
 router.post('/auth/login', loginRules, authValidate, AuthController.login);
+router.post('/auth/admin/send-otp', AuthController.sendAdminOtp);
+router.post('/auth/admin/verify-otp', AuthController.verifyAdminOtp);
 router.put('/auth/change-password', authenticateToken, changePasswordRules, authValidate, AuthController.changePassword);
 
 // Users (public create for registration; protected CRUD for admin)
 router.post('/users', createUserRules, userValidate, UserController.createUser);
 router.get('/users/me', authenticateToken, UserController.getCurrentUser);
 router.get('/users', authenticateToken, authorizeRoles('Admin'), UserController.getAllUsers);
+router.get('/users/area-heads/list', authenticateToken, UserController.getAreaHeads);
 router.get('/users/:id', authenticateToken, userIdRules, userValidate, UserController.getUserById);
 router.put('/users/me/location', authenticateToken, authorizeRoles('Engineer'), updateLocationRules, userValidate, UserController.updateMyLocation);
 router.put('/users/:id', authenticateToken, authorizeRoles('Admin'), updateUserRules, userValidate, UserController.updateUser);
@@ -135,6 +139,68 @@ router.delete(
   ticketIdRules,
   ticketValidate,
   TicketController.deleteTicket
+);
+
+// Preventive Maintenance Visits (AMC)
+router.post(
+  '/visits',
+  authenticateToken,
+  authorizeRoles('Admin'),
+  VisitController.createVisit
+);
+router.get(
+  '/visits',
+  authenticateToken,
+  authorizeRoles('Admin', 'Engineer'),
+  VisitController.getVisits
+);
+router.get(
+  '/visits/my-visits',
+  authenticateToken,
+  authorizeRoles('Engineer'),
+  VisitController.getMyVisits
+);
+router.get(
+  '/visits/overdue',
+  authenticateToken,
+  authorizeRoles('Admin'),
+  VisitController.getOverdueVisits
+);
+router.get(
+  '/visits/:id',
+  authenticateToken,
+  authorizeRoles('Admin', 'Engineer'),
+  VisitController.getVisitById
+);
+router.put(
+  '/visits/:id',
+  authenticateToken,
+  authorizeRoles('Admin'),
+  VisitController.updateVisit
+);
+router.put(
+  '/visits/:id/complete',
+  authenticateToken,
+  authorizeRoles('Engineer', 'Admin'),
+  VisitController.completeVisit
+);
+router.delete(
+  '/visits/:id',
+  authenticateToken,
+  authorizeRoles('Admin'),
+  VisitController.deleteVisit
+);
+router.get(
+  '/visits/user/:userId/stats',
+  authenticateToken,
+  authorizeRoles('Admin'),
+  VisitController.getUserVisitStats
+);
+router.get(
+  '/visits/user/:userId/check',
+  authenticateToken,
+  authorizeRoles('Admin'),
+  VisitController.checkVisitNeeded
 );
 
 // Protected dashboard routes

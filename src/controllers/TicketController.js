@@ -2,8 +2,8 @@ const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { emitTicketCreated, emitTicketAssigned, emitTicketUpdated } = require('../socket');
 const { notifyRoles, notifyUsers } = require('../services/firebase');
-const { sendWhatsApp, formatPhoneNumber } = require('../services/whatsappService');
-const { sendEmail } = require('../services/emailService');
+const { sendWhatsApp, sendStatusUpdate, formatPhoneNumber } = require('../services/whatsappService');
+const { sendEmail, sendStatusUpdateEmail } = require('../services/emailService');
 
 /**
  * Haversine formula: distance in km between two lat/lng points
@@ -43,6 +43,42 @@ async function findNearestEngineer(userLat, userLon) {
     }
   }
   return nearest.id;
+}
+
+/**
+ * Fetch customer contact details for a ticket and send WhatsApp + email status update.
+ * @param {object} ticket - Ticket object (must have id, created_by, status)
+ */
+async function sendTicketUpdateNotifications(ticket) {
+  try {
+    const serviceId = `NXP-SVC-${String(ticket.id).padStart(6, '0')}`;
+    const user = await User.findById(ticket.created_by);
+    if (!user) return;
+
+    const customerName = user.name || 'Customer';
+    const phoneNumber = user.phone ? formatPhoneNumber(user.phone) : null;
+    const customerEmail = user.email || null;
+
+    if (phoneNumber) {
+      sendStatusUpdate(phoneNumber, customerName, serviceId, ticket.status).catch((e) => {
+        console.error('[WhatsApp] Failed to send status update:', e.message);
+      });
+    } else {
+      console.warn('[WhatsApp] No phone for status update, userId:', ticket.created_by);
+    }
+
+    if (customerEmail) {
+      sendStatusUpdateEmail(customerEmail, customerName, serviceId, ticket.status).catch((e) => {
+        console.error('[Email] Failed to send status update:', e.message);
+      });
+    } else {
+      console.warn('[Email] No email for status update, userId:', ticket.created_by);
+    }
+
+    console.log('[Notifications] Triggered WhatsApp and email status update for ticket:', serviceId);
+  } catch (e) {
+    console.error('[sendTicketUpdateNotifications] Error:', e.message);
+  }
 }
 
 class TicketController {
@@ -488,6 +524,9 @@ class TicketController {
       // Emit ticket updated event
       emitTicketUpdated(ticket);
 
+      // Send WhatsApp + email status update to customer
+      sendTicketUpdateNotifications(ticket);
+
       res.status(200).json({
         success: true,
         message: 'Ticket updated successfully',
@@ -531,6 +570,9 @@ class TicketController {
       TicketController.sendAssignedNotifications(ticket).catch((e) => {
         console.error('[FCM] assign notification error:', e.message);
       });
+
+      // Send WhatsApp + email assignment notification to customer
+      sendTicketUpdateNotifications(ticket);
       
       res.status(200).json({
         success: true,
@@ -586,7 +628,10 @@ class TicketController {
       
       // Emit ticket updated event for feedback submission
       emitTicketUpdated(updated);
-      
+
+      // Send WhatsApp + email status update to customer
+      sendTicketUpdateNotifications(updated);
+
       // Check if status was auto-converted
       const statusChanged = ticket.status === 'completed' && updated.status === 'resolved';
       

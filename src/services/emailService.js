@@ -130,6 +130,115 @@ This is an automated message. Please do not reply to this email.
   }
 };
 
+/**
+ * Send email status update notification using Nodemailer
+ * @param {string} email - User email address
+ * @param {string} customerName - Customer's name
+ * @param {string} serviceId - Service ID (format: NXP-SVC-XXXXXX)
+ * @param {string} status - New ticket status
+ * @returns {Promise<Object>} - Result object with success status and message
+ */
+const sendStatusUpdateEmail = async (email, customerName, serviceId, status) => {
+  try {
+    if (!email || !customerName || !serviceId || !status) {
+      throw new Error('Missing required parameters: email, customerName, serviceId, status');
+    }
+
+    if (!EMAIL_USER || !EMAIL_PASS) {
+      throw new Error('Email credentials not configured in environment variables');
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: EMAIL_HOST,
+      port: EMAIL_PORT,
+      secure: EMAIL_PORT === 465,
+      auth: {
+        user: EMAIL_USER,
+        pass: EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 30000,
+      greetingTimeout: 10000,
+    });
+
+    const statusLabel = status.charAt(0).toUpperCase() + status.slice(1).replace(/-/g, ' ');
+    const emailSubject = `Complaint Status Update - ${serviceId}`;
+    const messageText = `Hello ${customerName}, your complaint ${serviceId} has been updated. Current status: ${statusLabel}. Thank you for contacting Nextstep Multiparking Support.`;
+
+    const emailText = `
+${messageText}
+
+Service ID: ${serviceId}
+Status: ${statusLabel}
+
+This is an automated message. Please do not reply to this email.
+© 2026 Nextstep Multiparking Support. All rights reserved.
+    `;
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.5;">${messageText}</p>
+        <div style="margin: 15px 0; padding: 10px; background: #f5f5f5; border-left: 3px solid #667eea;">
+          <p style="margin: 5px 0; font-size: 12px;"><strong>Service ID:</strong> ${serviceId}</p>
+          <p style="margin: 5px 0; font-size: 12px;"><strong>Status:</strong> ${statusLabel}</p>
+        </div>
+        <p style="margin: 15px 0 5px 0; font-size: 11px; color: #666;">This is an automated message. Please do not reply to this email.</p>
+        <p style="margin: 5px 0; font-size: 11px; color: #666;">© 2026 Nextstep Multiparking Support. All rights reserved.</p>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: `"Nextstep Multiparking Support" <${FROM_EMAIL}>`,
+      to: email,
+      subject: emailSubject,
+      text: emailText,
+      html: emailHtml,
+    };
+
+    console.log('[Email Service] Sending status update email:', {
+      to: email,
+      serviceId,
+      customerName,
+      status,
+      subject: emailSubject,
+    });
+
+    const result = await transporter.sendMail(mailOptions);
+
+    console.log('[Email Service] Status update email sent successfully:', {
+      messageId: result.messageId,
+      to: email,
+      serviceId,
+    });
+
+    return {
+      success: true,
+      message: 'Status update email sent successfully',
+      data: {
+        messageId: result.messageId,
+        to: email,
+        serviceId,
+      },
+    };
+
+  } catch (error) {
+    console.error('[Email Service] Error sending status update email:', {
+      error: error.message,
+      email: email?.substring(0, 6) + '****',
+      serviceId,
+    });
+
+    return {
+      success: false,
+      message: error.message || 'Failed to send status update email',
+      error: error.message,
+    };
+  }
+};
+
 module.exports = {
   sendEmail,
+  sendStatusUpdateEmail,
 };

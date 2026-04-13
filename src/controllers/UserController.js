@@ -68,7 +68,7 @@ class UserController {
 
   static async createUser(req, res, next) {
     try {
-      const { email, password, name, role, phone, userId, latitude, longitude, siteName, siteAddress, siteType } = req.body;
+      const { email, password, name, role, phone, userId, latitude, longitude, siteName, siteAddress, siteType, systemType, carCount, systemQuantity, state, area, areaHeadId } = req.body;
 
       const existingByEmail = await User.findByEmail(email);
       if (existingByEmail) {
@@ -99,12 +99,34 @@ class UserController {
         siteName: siteName || null,
         siteAddress: siteAddress || null,
         siteType: siteType || null,
+        systemType: systemType || null,
+        carCount: carCount ?? null,
+        systemQuantity: systemQuantity ?? null,
+        state: state || null,
+        area: area || null,
+        areaHeadId: areaHeadId ?? null,
       });
 
       res.status(201).json({
         success: true,
         message: 'User created successfully',
         data: sanitizeUser(newUser),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get all area heads for dropdown selection
+   */
+  static async getAreaHeads(req, res, next) {
+    try {
+      const areaHeads = await User.findAreaHeads();
+      res.status(200).json({
+        success: true,
+        data: areaHeads,
+        count: areaHeads.length,
       });
     } catch (error) {
       next(error);
