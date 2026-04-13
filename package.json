@@ -9,6 +9,7 @@
     "test": "jest",
     "migrate": "node scripts/run-migrations.js",
     "migrate:maintenance": "node migrations/010_add_preventive_maintenance.js",
+    "migrate:created-by": "node migrations/011_add_created_by_to_visits.js",
     "seed": "node scripts/seed-admin.js"
   },
   "keywords": [

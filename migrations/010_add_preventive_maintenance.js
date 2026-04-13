@@ -41,6 +41,7 @@ async function runMigration() {
         notes TEXT,
         completion_notes TEXT,
         completed_at TIMESTAMP WITH TIME ZONE,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )

@@ -68,6 +68,8 @@ class VisitController {
         data: visitWithDetails,
       });
     } catch (error) {
+      console.error('[Visit] Create error:', error.message);
+      console.error('[Visit] Error stack:', error.stack);
       next(error);
     }
   }
