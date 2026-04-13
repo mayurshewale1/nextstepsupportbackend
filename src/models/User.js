@@ -22,17 +22,17 @@ class User {
         user.name || '',
         user.role || 'user',
         user.phone || null,
-        user.latitude ?? null,
-        user.longitude ?? null,
+        user.latitude !== undefined ? user.latitude : null,
+        user.longitude !== undefined ? user.longitude : null,
         user.siteName || user.site_name || null,
         user.siteAddress || user.site_address || null,
         user.siteType || user.site_type || null,
         user.systemType || user.system_type || null,
-        user.carCount || user.car_count ?? null,
-        user.systemQuantity || user.system_quantity ?? null,
+        user.carCount || user.car_count || null,
+        user.systemQuantity || user.system_quantity || null,
         user.state || null,
         user.area || null,
-        user.areaHeadId || user.area_head_id ?? null,
+        user.areaHeadId || user.area_head_id || null,
       ]
     );
     return result.rows[0];

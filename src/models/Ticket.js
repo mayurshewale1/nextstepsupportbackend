@@ -17,8 +17,8 @@ class Ticket {
         ticket.category || null,
         ticket.createdBy || ticket.created_by,
         ticket.assignedTo || ticket.assigned_to || null,
-        ticket.latitude ?? null,
-        ticket.longitude ?? null,
+        ticket.latitude !== undefined ? ticket.latitude : null,
+        ticket.longitude !== undefined ? ticket.longitude : null,
         ticket.imagePath || ticket.image_path || null,
         ticket.imagePaths || ticket.image_paths || null,
       ]

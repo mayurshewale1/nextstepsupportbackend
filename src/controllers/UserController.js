@@ -94,17 +94,17 @@ class UserController {
         name: name || email.split('@')[0],
         role: role || 'user',
         phone: phone || null,
-        latitude: latitude ?? null,
-        longitude: longitude ?? null,
+        latitude: latitude !== undefined ? latitude : null,
+        longitude: longitude !== undefined ? longitude : null,
         siteName: siteName || null,
         siteAddress: siteAddress || null,
         siteType: siteType || null,
         systemType: systemType || null,
-        carCount: carCount ?? null,
-        systemQuantity: systemQuantity ?? null,
+        carCount: carCount !== undefined ? carCount : null,
+        systemQuantity: systemQuantity !== undefined ? systemQuantity : null,
         state: state || null,
         area: area || null,
-        areaHeadId: areaHeadId ?? null,
+        areaHeadId: areaHeadId !== undefined ? areaHeadId : null,
       });
 
       res.status(201).json({

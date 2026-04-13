@@ -221,8 +221,8 @@ class TicketController {
         category: category || null,
         createdBy,
         assignedTo,
-        latitude: latitude ?? null,
-        longitude: longitude ?? null,
+        latitude: latitude !== undefined ? latitude : null,
+        longitude: longitude !== undefined ? longitude : null,
       });
 
       // Generate service ID for WhatsApp
