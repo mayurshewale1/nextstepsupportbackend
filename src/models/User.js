@@ -103,8 +103,17 @@ class User {
     }
 
     query += ' ORDER BY created_at DESC';
-    const result = await Database.query(query, params);
-    return result.rows;
+    console.log('[DB] Executing query:', query);
+    console.log('[DB] Query params:', params);
+    try {
+      const result = await Database.query(query, params);
+      console.log('[DB] Query successful, rows returned:', result.rows.length);
+      return result.rows;
+    } catch (error) {
+      console.error('[DB] Query failed:', error.message);
+      console.error('[DB] Error code:', error.code);
+      throw error;
+    }
   }
 
   static async update(id, user) {

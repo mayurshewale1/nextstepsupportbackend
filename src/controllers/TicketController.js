@@ -2,7 +2,7 @@ const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { emitTicketCreated, emitTicketAssigned, emitTicketUpdated } = require('../socket');
 const { notifyRoles, notifyUsers } = require('../services/firebase');
-const { sendWhatsApp, sendStatusUpdate, formatPhoneNumber } = require('../services/whatsappService');
+const { sendWhatsApp, sendStatusUpdate, sendOtpWhatsApp, formatPhoneNumber } = require('../services/whatsappService');
 const { sendEmail, sendStatusUpdateEmail } = require('../services/emailService');
 
 /**
@@ -43,6 +43,14 @@ async function findNearestEngineer(userLat, userLon) {
     }
   }
   return nearest.id;
+}
+
+// In-memory OTP store for ticket completion: { ticketId -> { otp, expiresAt } }
+const ticketOtpStore = new Map();
+const TICKET_OTP_TTL_MS = 10 * 60 * 1000;
+
+function generateOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 /**
@@ -510,8 +518,37 @@ class TicketController {
         });
       }
 
-      // Allow engineers to mark as "completed" without feedback requirement
-      // Only "resolved" status requires feedback
+      // If engineer is marking as completed, send OTP to user first
+      if (updates.status === 'completed') {
+        const user = await User.findById(existing.created_by);
+        if (!user || !user.phone) {
+          return res.status(400).json({
+            success: false,
+            message: 'Cannot complete ticket: customer has no phone number registered.',
+          });
+        }
+        const otp = generateOtp();
+        ticketOtpStore.set(String(id), {
+          otp,
+          expiresAt: Date.now() + TICKET_OTP_TTL_MS,
+          updates,
+        });
+        const phone = formatPhoneNumber(user.phone);
+        const result = await sendOtpWhatsApp(phone, user.name || 'Customer', otp);
+        if (!result.success) {
+          ticketOtpStore.delete(String(id));
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to send OTP to customer. Please try again.',
+          });
+        }
+        return res.status(200).json({
+          success: true,
+          requiresOtp: true,
+          message: 'OTP sent to customer WhatsApp. Please ask customer to verify.',
+          phone: user.phone.replace(/(\d{2})\d+(\d{2})/, '$1****$2'),
+        });
+      }
 
       const ticket = await Ticket.update(parseInt(id, 10), updates);
       if (!ticket) {
@@ -521,10 +558,7 @@ class TicketController {
         });
       }
 
-      // Emit ticket updated event
       emitTicketUpdated(ticket);
-
-      // Send WhatsApp + email status update to customer
       sendTicketUpdateNotifications(ticket);
 
       res.status(200).json({
@@ -534,6 +568,44 @@ class TicketController {
       });
     } catch (error) {
       console.error('[updateTicket]', error.message);
+      next(error);
+    }
+  }
+
+  static async verifyTicketCompletion(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { otp } = req.body;
+      if (!otp) {
+        return res.status(400).json({ success: false, message: 'OTP is required' });
+      }
+      const record = ticketOtpStore.get(String(id));
+      if (!record) {
+        return res.status(400).json({ success: false, message: 'No pending completion OTP. Please request again.' });
+      }
+      if (Date.now() > record.expiresAt) {
+        ticketOtpStore.delete(String(id));
+        return res.status(400).json({ success: false, message: 'OTP has expired. Please request again.' });
+      }
+      if (record.otp !== String(otp).trim()) {
+        return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+      }
+      ticketOtpStore.delete(String(id));
+
+      const ticket = await Ticket.update(parseInt(id, 10), record.updates);
+      if (!ticket) {
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+      emitTicketUpdated(ticket);
+      sendTicketUpdateNotifications(ticket);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Ticket marked as completed successfully',
+        data: ticket,
+      });
+    } catch (error) {
+      console.error('[verifyTicketCompletion]', error.message);
       next(error);
     }
   }

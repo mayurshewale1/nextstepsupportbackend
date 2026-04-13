@@ -36,13 +36,16 @@ class UserController {
   static async getAllUsers(req, res, next) {
     try {
       const { role } = req.query;
+      console.log('[API] Getting all users, role filter:', role || 'none');
       const users = await User.getAll({ role: role || undefined });
+      console.log('[API] Users fetched:', users.length);
       res.status(200).json({
         success: true,
         data: users,
         count: users.length,
       });
     } catch (error) {
+      console.error('[API] Error fetching users:', error.message);
       next(error);
     }
   }

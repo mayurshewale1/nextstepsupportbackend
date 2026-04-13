@@ -44,6 +44,45 @@ router.get('/info', (req, res) => {
   });
 });
 
+// Database test - check schema
+const Database = require('../config/database');
+router.get('/db-test', async (req, res) => {
+  try {
+    // Test users table columns
+    const columnCheck = await Database.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+      AND column_name IN ('state', 'area', 'area_head_id')
+    `);
+    
+    // Test if preventive_visits table exists
+    const tableCheck = await Database.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'preventive_visits'
+      ) as exists
+    `);
+    
+    // Count users
+    const userCount = await Database.query('SELECT COUNT(*) as count FROM users');
+    
+    res.status(200).json({
+      success: true,
+      database: 'connected',
+      userColumns: columnCheck.rows.map(r => r.column_name),
+      visitsTableExists: tableCheck.rows[0]?.exists || false,
+      totalUsers: parseInt(userCount.rows[0]?.count || 0),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: error.code,
+    });
+  }
+});
+
 // Auth
 router.post('/auth/login', loginRules, authValidate, AuthController.login);
 router.post('/auth/admin/send-otp', AuthController.sendAdminOtp);
@@ -123,6 +162,14 @@ router.put(
   assignTicketRules,
   ticketValidate,
   TicketController.assignTicket
+);
+router.post(
+  '/tickets/:id/verify-completion',
+  authenticateToken,
+  authorizeRoles('Admin', 'Engineer', 'User'),
+  ticketIdRules,
+  ticketValidate,
+  TicketController.verifyTicketCompletion
 );
 router.put(
   '/tickets/:id/feedback',
