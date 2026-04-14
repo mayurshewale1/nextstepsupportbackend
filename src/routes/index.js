@@ -92,7 +92,7 @@ router.put('/auth/change-password', authenticateToken, changePasswordRules, auth
 // Users (public create for registration; protected CRUD for admin)
 router.post('/users', createUserRules, userValidate, UserController.createUser);
 router.get('/users/me', authenticateToken, UserController.getCurrentUser);
-router.get('/users', authenticateToken, authorizeRoles('Admin'), UserController.getAllUsers);
+router.get('/users', authenticateToken, authorizeRoles('Admin', 'area_head'), UserController.getAllUsers);
 router.get('/users/area-heads/list', authenticateToken, UserController.getAreaHeads);
 router.get('/users/:id', authenticateToken, userIdRules, userValidate, UserController.getUserById);
 router.put('/users/me/location', authenticateToken, authorizeRoles('Engineer'), updateLocationRules, userValidate, UserController.updateMyLocation);
@@ -119,7 +119,7 @@ router.delete(
 router.get(
   '/tickets',
   authenticateToken,
-  authorizeRoles('Admin', 'Engineer', 'User'),
+  authorizeRoles('Admin', 'Engineer', 'User', 'area_head'),
   getTicketsQueryRules,
   ticketValidate,
   TicketController.getTickets
@@ -127,7 +127,7 @@ router.get(
 router.get(
   '/tickets/:id',
   authenticateToken,
-  authorizeRoles('Admin', 'Engineer', 'User'),
+  authorizeRoles('Admin', 'Engineer', 'User', 'area_head'),
   ticketIdRules,
   ticketValidate,
   TicketController.getTicketById
@@ -150,7 +150,7 @@ router.post(
 router.put(
   '/tickets/:id',
   authenticateToken,
-  authorizeRoles('Admin', 'Engineer'),
+  authorizeRoles('Admin', 'Engineer', 'area_head'),
   updateTicketRules,
   ticketValidate,
   TicketController.updateTicket
@@ -158,7 +158,7 @@ router.put(
 router.put(
   '/tickets/:id/assign',
   authenticateToken,
-  authorizeRoles('Admin'),
+  authorizeRoles('Admin', 'area_head'),
   assignTicketRules,
   ticketValidate,
   TicketController.assignTicket

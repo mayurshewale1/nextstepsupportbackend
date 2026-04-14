@@ -91,7 +91,7 @@ class Visit {
       query += ` AND (LOWER(u.site_type) = 'amc' OR LOWER(u.site_type) LIKE '%amc%')`;
     }
 
-    query += ' ORDER BY pv.visit_date ASC';
+    query += ' ORDER BY pv.visit_date DESC';
 
     const result = await Database.query(query, params);
     return result.rows;
