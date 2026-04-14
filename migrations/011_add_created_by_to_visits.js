@@ -14,6 +14,8 @@ async function runMigration() {
     process.exit(0);
   } catch (error) {
     console.error('❌ Migration failed:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Full error:', error);
     process.exit(1);
   }
 }

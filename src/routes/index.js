@@ -198,7 +198,7 @@ router.post(
 router.get(
   '/visits',
   authenticateToken,
-  authorizeRoles('Admin', 'Engineer'),
+  authorizeRoles('Admin', 'Engineer', 'User'),
   VisitController.getVisits
 );
 router.get(
