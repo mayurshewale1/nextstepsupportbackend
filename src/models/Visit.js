@@ -22,17 +22,19 @@ class Visit {
   }
 
   /**
-   * Find visit by ID with user and engineer details
+   * Find visit by ID with user, engineer and creator details
    */
   static async findById(id) {
     const result = await Database.query(
       `SELECT pv.*,
               u.name as user_name, u.email as user_email, u.phone as user_phone,
               u.site_name, u.site_address, u.state, u.area,
-              e.name as engineer_name, e.email as engineer_email, e.phone as engineer_phone
+              e.name as engineer_name, e.email as engineer_email, e.phone as engineer_phone,
+              c.name as created_by_name, c.email as created_by_email, c.role as created_by_role
        FROM preventive_visits pv
        LEFT JOIN users u ON pv.user_id = u.id
        LEFT JOIN users e ON pv.engineer_id = e.id
+       LEFT JOIN users c ON pv.created_by = c.id
        WHERE pv.id = $1`,
       [id]
     );
@@ -47,10 +49,12 @@ class Visit {
       SELECT pv.*,
              u.name as user_name, u.email as user_email, u.phone as user_phone,
              u.site_name, u.site_address, u.state, u.area,
-             e.name as engineer_name, e.email as engineer_email, e.phone as engineer_phone
+             e.name as engineer_name, e.email as engineer_email, e.phone as engineer_phone,
+             c.name as created_by_name, c.email as created_by_email, c.role as created_by_role
       FROM preventive_visits pv
       LEFT JOIN users u ON pv.user_id = u.id
       LEFT JOIN users e ON pv.engineer_id = e.id
+      LEFT JOIN users c ON pv.created_by = c.id
       WHERE 1=1
     `;
     const params = [];
@@ -125,10 +129,12 @@ class Visit {
       `SELECT pv.*,
               u.name as user_name, u.email as user_email, u.phone as user_phone,
               u.site_name, u.site_address, u.state, u.area,
-              e.name as engineer_name, e.email as engineer_email, e.phone as engineer_phone
+              e.name as engineer_name, e.email as engineer_email, e.phone as engineer_phone,
+              c.name as created_by_name, c.email as created_by_email, c.role as created_by_role
        FROM preventive_visits pv
        LEFT JOIN users u ON pv.user_id = u.id
        LEFT JOIN users e ON pv.engineer_id = e.id
+       LEFT JOIN users c ON pv.created_by = c.id
        WHERE pv.status = 'scheduled'
          AND pv.visit_date < CURRENT_DATE
        ORDER BY pv.visit_date ASC`
