@@ -121,6 +121,31 @@ class UserController {
   }
 
   /**
+   * Get users assigned to the logged-in area head
+   */
+  static async getMyAssignedUsers(req, res, next) {
+    try {
+      const areaHeadId = req.user?.id;
+      if (!areaHeadId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+      
+      const users = await User.findByAreaHeadId(parseInt(areaHeadId, 10));
+      
+      res.status(200).json({
+        success: true,
+        data: users.map(sanitizeUser),
+        count: users.length,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Get all area heads for dropdown selection
    */
   static async getAreaHeads(req, res, next) {

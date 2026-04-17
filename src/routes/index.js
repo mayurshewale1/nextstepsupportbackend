@@ -94,6 +94,7 @@ router.post('/users', createUserRules, userValidate, UserController.createUser);
 router.get('/users/me', authenticateToken, UserController.getCurrentUser);
 router.get('/users', authenticateToken, authorizeRoles('Admin', 'area_head'), UserController.getAllUsers);
 router.get('/users/area-heads/list', authenticateToken, UserController.getAreaHeads);
+router.get('/users/my-assigned-users', authenticateToken, authorizeRoles('area_head'), UserController.getMyAssignedUsers);
 router.get('/users/:id', authenticateToken, userIdRules, userValidate, UserController.getUserById);
 router.put('/users/me/location', authenticateToken, authorizeRoles('Engineer'), updateLocationRules, userValidate, UserController.updateMyLocation);
 router.put('/users/:id', authenticateToken, authorizeRoles('Admin'), updateUserRules, userValidate, UserController.updateUser);
@@ -192,13 +193,13 @@ router.delete(
 router.post(
   '/visits',
   authenticateToken,
-  authorizeRoles('Admin'),
+  authorizeRoles('Admin', 'area_head'),
   VisitController.createVisit
 );
 router.get(
   '/visits',
   authenticateToken,
-  authorizeRoles('Admin', 'Engineer', 'User'),
+  authorizeRoles('Admin', 'Engineer', 'User', 'area_head'),
   VisitController.getVisits
 );
 router.get(
@@ -210,19 +211,19 @@ router.get(
 router.get(
   '/visits/overdue',
   authenticateToken,
-  authorizeRoles('Admin'),
+  authorizeRoles('Admin', 'area_head'),
   VisitController.getOverdueVisits
 );
 router.get(
   '/visits/:id',
   authenticateToken,
-  authorizeRoles('Admin', 'Engineer'),
+  authorizeRoles('Admin', 'Engineer', 'area_head'),
   VisitController.getVisitById
 );
 router.put(
   '/visits/:id',
   authenticateToken,
-  authorizeRoles('Admin'),
+  authorizeRoles('Admin', 'area_head'),
   VisitController.updateVisit
 );
 router.put(
@@ -234,7 +235,7 @@ router.put(
 router.delete(
   '/visits/:id',
   authenticateToken,
-  authorizeRoles('Admin'),
+  authorizeRoles('Admin', 'area_head'),
   VisitController.deleteVisit
 );
 router.get(

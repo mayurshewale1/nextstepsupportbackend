@@ -76,6 +76,23 @@ class User {
   }
 
   /**
+   * Find all users assigned to a specific area head (users and engineers)
+   */
+  static async findByAreaHeadId(areaHeadId) {
+    const result = await Database.query(
+      `SELECT id, user_id, email, name, role, phone, latitude, longitude, 
+              site_name, site_address, site_type, system_type, car_count, 
+              system_quantity, state, area, area_head_id, is_active, 
+              created_at, updated_at 
+       FROM users 
+       WHERE area_head_id = $1 AND LOWER(role) IN ('user', 'engineer')
+       ORDER BY role ASC, name ASC`,
+      [areaHeadId]
+    );
+    return result.rows;
+  }
+
+  /**
    * Find by user_id OR email (for login)
    */
   static async findByUserIdOrEmail(userIdOrEmail) {
