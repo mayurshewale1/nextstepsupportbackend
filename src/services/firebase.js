@@ -1,4 +1,5 @@
 const NotificationToken = require('../models/NotificationToken');
+const User = require('../models/User');
 
 let firebaseAdmin = null;
 
@@ -44,7 +45,32 @@ async function sendToTokens(tokens, payload) {
     tokens: deduped,
     notification: payload.notification,
     data: payload.data || {},
-    android: { priority: 'high' },
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'high-priority',
+        sound: 'default',
+        priority: 'high',
+        visibility: 'public',
+        // Ensure pop-up notification
+        sticky: false,
+        localOnly: false,
+      },
+    },
+    apns: {
+      headers: {
+        'apns-priority': '10',
+      },
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+          // Ensure pop-up notification
+          'content-available': 1,
+          'mutable-content': 1,
+        },
+      },
+    },
   };
 
   const result = await admin.messaging().sendEachForMulticast(message);
@@ -57,11 +83,40 @@ async function notifyRoles(roles, payload) {
 }
 
 async function notifyUsers(userIds, payload) {
+  // Get tokens for the target users
   const tokens = await NotificationToken.getTokensByUserIds(userIds);
+
+  // Also get area head IDs for these users and notify them too
+  const areaHeadIds = await User.getAreaHeadIdsForUsers(userIds);
+  if (areaHeadIds.length > 0) {
+    const areaHeadTokens = await NotificationToken.getTokensByUserIds(areaHeadIds);
+    // Merge area head tokens with user tokens
+    tokens.push(...areaHeadTokens);
+  }
+
   return sendToTokens(tokens, payload);
+}
+
+async function notifyUsersAndAreaHeads(userIds, payload, includeAreaHeads = true) {
+  // Get tokens for the target users
+  const userTokens = await NotificationToken.getTokensByUserIds(userIds);
+
+  let allTokens = [...userTokens];
+
+  // Also notify area heads if requested
+  if (includeAreaHeads && userIds.length > 0) {
+    const areaHeadIds = await User.getAreaHeadIdsForUsers(userIds);
+    if (areaHeadIds.length > 0) {
+      const areaHeadTokens = await NotificationToken.getTokensByUserIds(areaHeadIds);
+      allTokens = [...new Set([...allTokens, ...areaHeadTokens])];
+    }
+  }
+
+  return sendToTokens(allTokens, payload);
 }
 
 module.exports = {
   notifyRoles,
   notifyUsers,
+  notifyUsersAndAreaHeads,
 };

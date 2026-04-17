@@ -155,12 +155,30 @@ class Ticket {
   }
 
   static async assign(id, assignedTo) {
-    const result = await Database.query(
-      `UPDATE tickets SET assigned_to = $1, status = 'in-progress', updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2
-       RETURNING *`,
-      [assignedTo, id]
-    );
+    // Get current ticket to check status
+    const existing = await this.findById(id);
+    if (!existing) return null;
+    
+    // Only set status to 'in-progress' if ticket is still open
+    // Don't overwrite resolved/completed/closed status
+    const shouldUpdateStatus = existing.status === 'open';
+    
+    let query;
+    let params;
+    
+    if (shouldUpdateStatus) {
+      query = `UPDATE tickets SET assigned_to = $1, status = 'in-progress', updated_at = CURRENT_TIMESTAMP
+               WHERE id = $2
+               RETURNING *`;
+      params = [assignedTo, id];
+    } else {
+      query = `UPDATE tickets SET assigned_to = $1, updated_at = CURRENT_TIMESTAMP
+               WHERE id = $2
+               RETURNING *`;
+      params = [assignedTo, id];
+    }
+    
+    const result = await Database.query(query, params);
     return result.rows[0];
   }
 

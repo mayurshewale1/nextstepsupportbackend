@@ -76,6 +76,25 @@ class User {
   }
 
   /**
+   * Find area head IDs for given user IDs (users get their area_head_id)
+   */
+  static async getAreaHeadIdsForUsers(userIds = []) {
+    if (!Array.isArray(userIds) || userIds.length === 0) return [];
+    const normalized = [...new Set(userIds.map(Number).filter(Boolean))];
+    if (normalized.length === 0) return [];
+
+    const result = await Database.query(
+      `SELECT DISTINCT area_head_id 
+       FROM users 
+       WHERE id = ANY($1::int[]) 
+         AND area_head_id IS NOT NULL 
+         AND LOWER(role) IN ('user', 'engineer')`,
+      [normalized]
+    );
+    return result.rows.map((r) => r.area_head_id).filter(Boolean);
+  }
+
+  /**
    * Find all users assigned to a specific area head (users and engineers)
    */
   static async findByAreaHeadId(areaHeadId) {
