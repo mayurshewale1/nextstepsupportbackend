@@ -2,8 +2,8 @@ const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { emitTicketCreated, emitTicketAssigned, emitTicketUpdated } = require('../socket');
 const { notifyRoles, notifyUsers } = require('../services/firebase');
-const { sendWhatsApp, sendStatusUpdate, sendOtpWhatsApp, formatPhoneNumber } = require('../services/whatsappService');
-const { sendEmail, sendStatusUpdateEmail } = require('../services/emailService');
+const { sendWhatsApp, sendStatusUpdate, sendOtpWhatsApp, formatPhoneNumber, sendEngineerAssignmentNotification, sendAdminTicketNotification } = require('../services/whatsappService');
+const { sendEmail, sendStatusUpdateEmail, sendEngineerAssignmentEmail, sendAdminTicketEmail } = require('../services/emailService');
 
 /**
  * Haversine formula: distance in km between two lat/lng points
@@ -54,36 +54,139 @@ function generateOtp() {
 }
 
 /**
- * Fetch customer contact details for a ticket and send WhatsApp + email status update.
- * @param {object} ticket - Ticket object (must have id, created_by, status)
+ * Fetch all related users for a ticket and send WhatsApp + email notifications.
+ * Notifies: customer (who created ticket), assigned engineer, and all admins.
+ * @param {object} ticket - Ticket object (must have id, created_by, status, assigned_to)
+ * @param {string} notificationType - Type of notification: 'status_update', 'assignment', 'new_ticket'
+ * @param {object} options - Additional options including updatedBy user
  */
-async function sendTicketUpdateNotifications(ticket) {
+async function sendTicketUpdateNotifications(ticket, notificationType = 'status_update', options = {}) {
   try {
     const serviceId = `NXP-SVC-${String(ticket.id).padStart(6, '0')}`;
-    const user = await User.findById(ticket.created_by);
-    if (!user) return;
 
-    const customerName = user.name || 'Customer';
-    const phoneNumber = user.phone ? formatPhoneNumber(user.phone) : null;
-    const customerEmail = user.email || null;
+    // Fetch customer details with full info
+    const customer = await User.findById(ticket.created_by);
+    const customerName = customer?.name || 'Customer';
+    const customerPhoneRaw = customer?.phone || null;
+    const customerPhone = customerPhoneRaw ? formatPhoneNumber(customerPhoneRaw) : null;
+    const customerEmail = customer?.email || null;
+    const siteAddress = customer?.site_address || customer?.siteAddress || '';
 
-    if (phoneNumber) {
-      sendStatusUpdate(phoneNumber, customerName, serviceId, ticket.status).catch((e) => {
-        console.error('[WhatsApp] Failed to send status update:', e.message);
-      });
-    } else {
-      console.warn('[WhatsApp] No phone for status update, userId:', ticket.created_by);
+    // Fetch assigned engineer details if exists
+    let engineer = null;
+    let engineerName = null;
+    let engineerPhone = null;
+    let engineerEmail = null;
+    if (ticket.assigned_to) {
+      engineer = await User.findById(ticket.assigned_to);
+      engineerName = engineer?.name || 'Engineer';
+      engineerPhone = engineer?.phone ? formatPhoneNumber(engineer.phone) : null;
+      engineerEmail = engineer?.email || null;
     }
 
-    if (customerEmail) {
-      sendStatusUpdateEmail(customerEmail, customerName, serviceId, ticket.status).catch((e) => {
-        console.error('[Email] Failed to send status update:', e.message);
-      });
-    } else {
-      console.warn('[Email] No email for status update, userId:', ticket.created_by);
+    // Fetch all admins for notifications
+    const admins = await User.getAll({ role: 'admin' });
+
+    // Get updater info if provided
+    const updatedByName = options.updatedByName || '';
+
+    // Build ticket details object with full information
+    const ticketDetails = {
+      title: ticket.title || '',
+      priority: ticket.priority || 'medium',
+      category: ticket.category || 'General',
+      description: ticket.description || '',
+      assignedToName: engineerName || '',
+      customerPhone: customerPhoneRaw || '',
+      customerEmail: customerEmail || '',
+      siteAddress: siteAddress || '',
+      latitude: ticket.latitude || null,
+      longitude: ticket.longitude || null,
+      updatedBy: updatedByName,
+      actionType: notificationType === 'new_ticket' ? 'created' : notificationType === 'assignment' ? 'assigned' : 'updated'
+    };
+
+    // Build update details for status updates
+    const updateDetails = {
+      category: ticket.category || '',
+      priority: ticket.priority || '',
+      assignedToName: engineerName || '',
+      updatedBy: updatedByName,
+      notes: options.notes || '',
+      title: ticket.title || ''
+    };
+
+    console.log('[Notifications] Sending detailed notifications to related users for ticket:', serviceId, {
+      notificationType,
+      customerId: ticket.created_by,
+      engineerId: ticket.assigned_to,
+      adminCount: admins.length,
+      hasLocation: !!(ticket.latitude && ticket.longitude)
+    });
+
+    // 1. NOTIFY CUSTOMER (who created the ticket)
+    if (notificationType === 'status_update' || notificationType === 'new_ticket') {
+      // Customer gets status updates with full details
+      if (customerPhone) {
+        sendStatusUpdate(customerPhone, customerName, serviceId, ticket.status, updateDetails).catch((e) => {
+          console.error('[WhatsApp] Failed to send customer status update:', e.message);
+        });
+      }
+      if (customerEmail) {
+        sendStatusUpdateEmail(customerEmail, customerName, serviceId, ticket.status, updateDetails).catch((e) => {
+          console.error('[Email] Failed to send customer status update:', e.message);
+        });
+      }
     }
 
-    console.log('[Notifications] Triggered WhatsApp and email status update for ticket:', serviceId);
+    // 2. NOTIFY ASSIGNED ENGINEER
+    if (engineer && ticket.assigned_to) {
+      if (notificationType === 'assignment') {
+        // Engineer gets detailed assignment notification
+        if (engineerPhone) {
+          sendEngineerAssignmentNotification(engineerPhone, engineerName, serviceId, customerName, ticket.category, ticketDetails).catch((e) => {
+            console.error('[WhatsApp] Failed to send engineer assignment notification:', e.message);
+          });
+        }
+        if (engineerEmail) {
+          sendEngineerAssignmentEmail(engineerEmail, engineerName, serviceId, customerName, ticket.category, ticketDetails).catch((e) => {
+            console.error('[Email] Failed to send engineer assignment email:', e.message);
+          });
+        }
+      } else if (notificationType === 'status_update') {
+        // Engineer gets status updates about their assigned tickets
+        if (engineerPhone) {
+          sendAdminTicketNotification(engineerPhone, engineerName, serviceId, ticket.status, customerName, ticketDetails).catch((e) => {
+            console.error('[WhatsApp] Failed to send engineer status update:', e.message);
+          });
+        }
+        if (engineerEmail) {
+          sendAdminTicketEmail(engineerEmail, engineerName, serviceId, ticket.status, customerName, ticketDetails).catch((e) => {
+            console.error('[Email] Failed to send engineer status update:', e.message);
+          });
+        }
+      }
+    }
+
+    // 3. NOTIFY ALL ADMINS
+    for (const admin of admins) {
+      const adminPhone = admin.phone ? formatPhoneNumber(admin.phone) : null;
+      const adminEmail = admin.email || null;
+      const adminName = admin.name || 'Admin';
+
+      if (adminPhone) {
+        sendAdminTicketNotification(adminPhone, adminName, serviceId, ticket.status, customerName, ticketDetails).catch((e) => {
+          console.error('[WhatsApp] Failed to send admin notification:', e.message);
+        });
+      }
+      if (adminEmail) {
+        sendAdminTicketEmail(adminEmail, adminName, serviceId, ticket.status, customerName, ticketDetails).catch((e) => {
+          console.error('[Email] Failed to send admin notification:', e.message);
+        });
+      }
+    }
+
+    console.log('[Notifications] Detailed WhatsApp and email notifications sent to all related users for ticket:', serviceId);
   } catch (e) {
     console.error('[sendTicketUpdateNotifications] Error:', e.message);
   }
@@ -260,27 +363,90 @@ class TicketController {
         console.error('[FCM] create notification error:', e.message);
       });
 
-      // Send WhatsApp acknowledgment (async - don't block response)
-      if (phoneNumber) {
-        sendWhatsApp(phoneNumber, customerName, serviceId, category).catch((error) => {
-          console.error('[WhatsApp] Failed to send acknowledgment:', error.message);
-          // Don't fail API response if WhatsApp fails
-        });
-      } else {
-        console.warn('[WhatsApp] No phone number available for user:', createdBy);
-      }
-
-      // Send email acknowledgment (async - don't block response)
-      if (customerEmail) {
-        sendEmail(customerEmail, customerName, serviceId, category).catch((error) => {
-          console.error('[Email] Failed to send acknowledgment:', error.message);
-          // Don't fail API response if email fails
-        });
-      } else {
-        console.log('[Email] No customer email available for ticket:', serviceId);
+      // Prepare detailed ticket info for notifications
+      const customerPhoneRaw = user?.phone || null;
+      const siteAddress = user?.site_address || user?.siteAddress || '';
+      
+      // Get engineer name for customer notification if assigned
+      let assignedToName = '';
+      if (assignedTo) {
+        const engineer = await User.findById(assignedTo);
+        assignedToName = engineer?.name || '';
       }
       
-      console.log('[Notifications] Triggered WhatsApp and email acknowledgments for ticket:', serviceId);
+      // Build detailed ticket details
+      const ticketDetails = {
+        title: title || '',
+        priority: priority || 'medium',
+        category: category || 'General',
+        description: description || '',
+        assignedToName: assignedToName,
+        customerPhone: customerPhoneRaw || '',
+        customerEmail: customerEmail || '',
+        siteAddress: siteAddress || '',
+        latitude: latitude !== undefined ? latitude : null,
+        longitude: longitude !== undefined ? longitude : null,
+        actionType: 'created'
+      };
+
+      // Send notifications to all related users (async - don't block response)
+      setImmediate(async () => {
+        try {
+          // 1. Send detailed acknowledgment to customer
+          if (phoneNumber) {
+            sendWhatsApp(phoneNumber, customerName, serviceId, category, ticketDetails).catch((error) => {
+              console.error('[WhatsApp] Failed to send customer acknowledgment:', error.message);
+            });
+          }
+          if (customerEmail) {
+            sendEmail(customerEmail, customerName, serviceId, category, ticketDetails).catch((error) => {
+              console.error('[Email] Failed to send customer acknowledgment:', error.message);
+            });
+          }
+
+          // 2. Notify admins about new ticket with full details
+          const admins = await User.getAll({ role: 'admin' });
+          for (const admin of admins) {
+            const adminPhone = admin.phone ? formatPhoneNumber(admin.phone) : null;
+            const adminEmail = admin.email || null;
+            const adminName = admin.name || 'Admin';
+            if (adminPhone) {
+              sendAdminTicketNotification(adminPhone, adminName, serviceId, ticket.status, customerName, ticketDetails).catch((e) => {
+                console.error('[WhatsApp] Failed to send admin new ticket notification:', e.message);
+              });
+            }
+            if (adminEmail) {
+              sendAdminTicketEmail(adminEmail, adminName, serviceId, ticket.status, customerName, ticketDetails).catch((e) => {
+                console.error('[Email] Failed to send admin new ticket notification:', e.message);
+              });
+            }
+          }
+
+          // 3. If auto-assigned, notify the engineer with full details
+          if (assignedTo) {
+            const engineer = await User.findById(assignedTo);
+            if (engineer) {
+              const engineerPhone = engineer.phone ? formatPhoneNumber(engineer.phone) : null;
+              const engineerEmail = engineer.email || null;
+              const engineerName = engineer.name || 'Engineer';
+              if (engineerPhone) {
+                sendEngineerAssignmentNotification(engineerPhone, engineerName, serviceId, customerName, category, ticketDetails).catch((e) => {
+                  console.error('[WhatsApp] Failed to send engineer assignment notification:', e.message);
+                });
+              }
+              if (engineerEmail) {
+                sendEngineerAssignmentEmail(engineerEmail, engineerName, serviceId, customerName, category, ticketDetails).catch((e) => {
+                  console.error('[Email] Failed to send engineer assignment email:', e.message);
+                });
+              }
+            }
+          }
+
+          console.log('[Notifications] Sent detailed WhatsApp and email notifications to all related users for new ticket:', serviceId);
+        } catch (notificationError) {
+          console.error('[Notifications] Error sending new ticket notifications:', notificationError.message);
+        }
+      });
 
       res.status(201).json({
         success: true,
@@ -371,6 +537,33 @@ class TicketController {
         ? 'Ticket created and assigned to nearest engineer'
         : 'Ticket created successfully';
 
+      // Prepare detailed ticket info for notifications
+      const customerPhoneRaw = user?.phone || null;
+      const siteAddress = user?.site_address || user?.siteAddress || '';
+      
+      // Get engineer name for customer notification if assigned
+      let assignedToName = '';
+      if (assignedTo) {
+        const engineer = await User.findById(assignedTo);
+        assignedToName = engineer?.name || '';
+      }
+      
+      // Build detailed ticket details
+      const ticketDetails = {
+        title: title || '',
+        priority: priority || 'medium',
+        category: category || 'General',
+        description: description || '',
+        assignedToName: assignedToName,
+        customerPhone: customerPhoneRaw || '',
+        customerEmail: customerEmail || '',
+        siteAddress: siteAddress || '',
+        latitude: latitude !== undefined ? latitude : null,
+        longitude: longitude !== undefined ? longitude : null,
+        actionType: 'created',
+        hasImages: imagePaths.length > 0
+      };
+
       try {
         emitTicketCreated(ticket);
       } catch (socketError) {
@@ -378,45 +571,68 @@ class TicketController {
       }
       
       // Send notifications asynchronously - don't let notification errors fail the ticket creation
-      setImmediate(() => {
+      setImmediate(async () => {
         try {
+          // FCM notifications
           TicketController.sendCreateNotifications(ticket).catch((e) => {
             console.error('[FCM] create-with-image notification error:', e.message);
           });
+
+          // 1. Send detailed acknowledgment to customer via WhatsApp and Email
+          if (phoneNumber) {
+            sendWhatsApp(phoneNumber, customerName, serviceId, category, ticketDetails).catch((error) => {
+              console.error('[WhatsApp] Failed to send customer acknowledgment:', error.message);
+            });
+          }
+          if (customerEmail) {
+            sendEmail(customerEmail, customerName, serviceId, category, ticketDetails).catch((error) => {
+              console.error('[Email] Failed to send customer acknowledgment:', error.message);
+            });
+          }
+
+          // 2. Notify all admins about new ticket with full details
+          const admins = await User.getAll({ role: 'admin' });
+          for (const admin of admins) {
+            const adminPhone = admin.phone ? formatPhoneNumber(admin.phone) : null;
+            const adminEmail = admin.email || null;
+            const adminName = admin.name || 'Admin';
+            if (adminPhone) {
+              sendAdminTicketNotification(adminPhone, adminName, serviceId, ticket.status, customerName, ticketDetails).catch((e) => {
+                console.error('[WhatsApp] Failed to send admin new ticket notification:', e.message);
+              });
+            }
+            if (adminEmail) {
+              sendAdminTicketEmail(adminEmail, adminName, serviceId, ticket.status, customerName, ticketDetails).catch((e) => {
+                console.error('[Email] Failed to send admin new ticket notification:', e.message);
+              });
+            }
+          }
+
+          // 3. If auto-assigned, notify the engineer with full details
+          if (assignedTo) {
+            const engineer = await User.findById(assignedTo);
+            if (engineer) {
+              const engineerPhone = engineer.phone ? formatPhoneNumber(engineer.phone) : null;
+              const engineerEmail = engineer.email || null;
+              const engineerName = engineer.name || 'Engineer';
+              if (engineerPhone) {
+                sendEngineerAssignmentNotification(engineerPhone, engineerName, serviceId, customerName, category, ticketDetails).catch((e) => {
+                  console.error('[WhatsApp] Failed to send engineer assignment notification:', e.message);
+                });
+              }
+              if (engineerEmail) {
+                sendEngineerAssignmentEmail(engineerEmail, engineerName, serviceId, customerName, category, ticketDetails).catch((e) => {
+                  console.error('[Email] Failed to send engineer assignment email:', e.message);
+                });
+              }
+            }
+          }
+
+          console.log('[Notifications] Sent detailed WhatsApp and email notifications to all related users for new ticket:', serviceId);
         } catch (notificationError) {
-          console.error('[FCM] Error in notification process:', notificationError.message);
+          console.error('[Notifications] Error in notification process:', notificationError.message);
         }
       });
-
-      // Send WhatsApp acknowledgment (async - don't block response)
-      try {
-        if (phoneNumber) {
-          sendWhatsApp(phoneNumber, customerName, serviceId, category).catch((error) => {
-            console.error('[WhatsApp] Failed to send acknowledgment:', error.message);
-            // Don't fail the API response if WhatsApp fails
-          });
-        } else {
-          console.warn('[WhatsApp] No phone number available for user:', createdBy);
-        }
-      } catch (whatsappError) {
-        console.error('[WhatsApp] Error in WhatsApp process:', whatsappError.message);
-      }
-
-      // Send email acknowledgment (async - don't block response)
-      try {
-        if (customerEmail) {
-          sendEmail(customerEmail, customerName, serviceId, category).catch((error) => {
-            console.error('[Email] Failed to send acknowledgment:', error.message);
-            // Don't fail API response if email fails
-          });
-        } else {
-          console.log('[Email] No customer email available for ticket:', serviceId);
-        }
-      } catch (emailError) {
-        console.error('[Email] Error in email process:', emailError.message);
-      }
-      
-      console.log('[Notifications] Triggered WhatsApp and email acknowledgments for ticket:', serviceId);
 
       // CRITICAL: Always send success response after ticket creation
       // This ensures the user gets confirmation even if notifications fail
@@ -534,7 +750,7 @@ class TicketController {
           updates,
         });
         const phone = formatPhoneNumber(user.phone);
-        const result = await sendOtpWhatsApp(phone, user.name || 'Customer', otp);
+        const result = await sendOtpWhatsApp(phone, user.name || 'Customer', otp, 'ticket-completion');
         if (!result.success) {
           ticketOtpStore.delete(String(id));
           return res.status(500).json({
@@ -643,8 +859,8 @@ class TicketController {
         console.error('[FCM] assign notification error:', e.message);
       });
 
-      // Send WhatsApp + email assignment notification to customer
-      sendTicketUpdateNotifications(ticket);
+      // Send WhatsApp + email notifications to all related users (customer, engineer, admins)
+      sendTicketUpdateNotifications(ticket, 'assignment');
       
       res.status(200).json({
         success: true,
