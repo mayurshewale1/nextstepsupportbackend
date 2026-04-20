@@ -4,7 +4,6 @@ const AuthController = require('../controllers/AuthController');
 const TicketController = require('../controllers/TicketController');
 const VisitController = require('../controllers/visitController');
 const NotificationController = require('../controllers/NotificationController');
-const ReportController = require('../controllers/ReportController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { loginRules, changePasswordRules, validate: authValidate } = require('../validators/authValidator');
 const {
@@ -252,26 +251,6 @@ router.get(
   authenticateToken,
   authorizeRoles('Admin'),
   VisitController.checkVisitNeeded
-);
-
-// Reports - Excel downloads for Admin and Engineers
-router.get(
-  '/reports/engineers',
-  authenticateToken,
-  authorizeRoles('Admin', 'area_head'),
-  ReportController.generateEngineerReport
-);
-router.get(
-  '/reports/tickets',
-  authenticateToken,
-  authorizeRoles('Admin', 'area_head', 'Engineer'),
-  ReportController.generateTicketReport
-);
-router.get(
-  '/reports/stats',
-  authenticateToken,
-  authorizeRoles('Admin', 'area_head', 'Engineer'),
-  ReportController.getReportStats
 );
 
 // Protected dashboard routes
