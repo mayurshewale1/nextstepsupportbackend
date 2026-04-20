@@ -6,8 +6,8 @@ const VALID_PRIORITY = ['low', 'medium', 'high'];
 class Ticket {
   static async create(ticket) {
     const result = await Database.query(
-      `INSERT INTO tickets (title, description, status, priority, category, created_by, assigned_to, latitude, longitude, image_path, image_paths)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO tickets (title, description, status, priority, category, created_by, assigned_to, latitude, longitude, image_path, image_paths, system_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         ticket.title,
@@ -21,6 +21,7 @@ class Ticket {
         ticket.longitude !== undefined ? ticket.longitude : null,
         ticket.imagePath || ticket.image_path || null,
         ticket.imagePaths || ticket.image_paths || null,
+        ticket.systemType || ticket.system_type || null,
       ]
     );
     return result.rows[0];
@@ -126,7 +127,7 @@ class Ticket {
   }
 
   static async update(id, updates) {
-    const allowed = ['title', 'description', 'status', 'priority', 'category', 'assigned_to', 'rating', 'resolution', 'feedback_comment'];
+    const allowed = ['title', 'description', 'status', 'priority', 'category', 'assigned_to', 'rating', 'resolution', 'feedback_comment', 'system_type'];
     const setClauses = [];
     const values = [];
     let paramIndex = 1;

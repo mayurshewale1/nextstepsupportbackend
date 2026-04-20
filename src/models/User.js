@@ -11,9 +11,17 @@ function sanitizeUser(user) {
 
 class User {
   static async create(user) {
+    // Handle systemTypes array - store as JSONB
+    let systemTypesJson = null;
+    if (user.systemTypes && Array.isArray(user.systemTypes) && user.systemTypes.length > 0) {
+      systemTypesJson = JSON.stringify(user.systemTypes);
+    } else if (user.system_types && Array.isArray(user.system_types) && user.system_types.length > 0) {
+      systemTypesJson = JSON.stringify(user.system_types);
+    }
+
     const result = await Database.query(
-      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, car_count, system_quantity, state, area, area_head_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, car_count, system_quantity, state, area, area_head_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING *`,
       [
         user.userId || user.user_id,
@@ -27,7 +35,8 @@ class User {
         user.siteName || user.site_name || null,
         user.siteAddress || user.site_address || null,
         user.siteType || user.site_type || null,
-        user.systemType || user.system_type || null,
+        user.systemType || user.system_type || (systemTypesJson ? systemTypesJson[0] : null), // Keep first type in old column for compatibility
+        systemTypesJson,
         user.carCount || user.car_count || null,
         user.systemQuantity || user.system_quantity || null,
         user.state || null,

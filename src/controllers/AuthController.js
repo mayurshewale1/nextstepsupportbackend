@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const UserSession = require('../models/UserSession');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const config = require('../config/env');
@@ -29,12 +30,27 @@ exports.login = async (req, res, next) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
+
+    // Generate token
     const token = jwt.sign(
       { id: user.id, role: user.role, email: user.email },
       config.jwtSecret,
       { expiresIn: config.jwtExpire }
     );
-    res.json({
+    const tokenHash = UserSession.hashToken(token);
+
+    // Create session with device limit enforcement
+    const sessionResult = await UserSession.create(user.id, {
+      deviceId: req.body.deviceId || null,
+      deviceName: req.body.deviceName || req.headers['user-agent']?.substring(0, 100) || null,
+      ipAddress: req.ip || req.connection?.remoteAddress || null,
+      userAgent: req.headers['user-agent'] || null,
+      tokenHash: tokenHash,
+      expiresAt: new Date(Date.now() + (config.jwtExpireMs || 30 * 24 * 60 * 60 * 1000)) // Default 30 days
+    });
+
+    // Build response
+    const response = {
       success: true,
       token,
       user: {
@@ -44,7 +60,20 @@ exports.login = async (req, res, next) => {
         name: user.name,
         role: user.role,
       },
-    });
+    };
+
+    // Include device limit warning if sessions were removed
+    if (sessionResult.wasLimited && sessionResult.removedSessions.length > 0) {
+      response.deviceLimitWarning = {
+        message: `You are now logged in on this device. Your oldest ${sessionResult.removedSessions.length} session(s) have been removed to maintain the limit of ${UserSession.MAX_DEVICES || 2} devices.`,
+        removedSessions: sessionResult.removedSessions.map(s => ({
+          deviceName: s.device_name || 'Unknown device',
+          createdAt: s.created_at
+        }))
+      };
+    }
+
+    res.json(response);
   } catch (error) {
     next(error);
   }
@@ -126,13 +155,26 @@ exports.verifyAdminOtp = async (req, res, next) => {
 
     otpStore.delete(String(user.id));
 
+    // Generate token
     const token = jwt.sign(
       { id: user.id, role: user.role, email: user.email },
       config.jwtSecret,
       { expiresIn: config.jwtExpire }
     );
+    const tokenHash = UserSession.hashToken(token);
 
-    return res.json({
+    // Create session with device limit enforcement
+    const sessionResult = await UserSession.create(user.id, {
+      deviceId: req.body.deviceId || null,
+      deviceName: req.body.deviceName || req.headers['user-agent']?.substring(0, 100) || null,
+      ipAddress: req.ip || req.connection?.remoteAddress || null,
+      userAgent: req.headers['user-agent'] || null,
+      tokenHash: tokenHash,
+      expiresAt: new Date(Date.now() + (config.jwtExpireMs || 30 * 24 * 60 * 60 * 1000))
+    });
+
+    // Build response
+    const response = {
       success: true,
       token,
       user: {
@@ -143,6 +185,63 @@ exports.verifyAdminOtp = async (req, res, next) => {
         role: user.role,
         phone: user.phone,
       },
+    };
+
+    // Include device limit warning if sessions were removed
+    if (sessionResult.wasLimited && sessionResult.removedSessions.length > 0) {
+      response.deviceLimitWarning = {
+        message: `You are now logged in on this device. Your oldest ${sessionResult.removedSessions.length} session(s) have been removed to maintain the limit of 2 devices.`,
+        removedSessions: sessionResult.removedSessions.map(s => ({
+          deviceName: s.device_name || 'Unknown device',
+          createdAt: s.created_at
+        }))
+      };
+    }
+
+    return res.json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Logout - deactivate the current session
+ */
+exports.logout = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+      const tokenHash = UserSession.hashToken(token);
+      await UserSession.deactivateByToken(tokenHash);
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get active sessions for the current user
+ */
+exports.getActiveSessions = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+
+    const sessions = await UserSession.getActiveSessions(userId);
+
+    res.json({
+      success: true,
+      data: sessions,
+      maxDevices: 2
     });
   } catch (error) {
     next(error);

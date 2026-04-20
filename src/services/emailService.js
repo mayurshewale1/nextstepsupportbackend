@@ -49,8 +49,7 @@ const sendEmail = async (email, customerName, serviceId, category, ticketDetails
     });
 
     // Extract ticket details
-    const { title = '', priority = 'medium', assignedToName = '', description = '' } = ticketDetails;
-    const priorityLabel = priority.charAt(0).toUpperCase() + priority.slice(1);
+    const { title = '', assignedToName = '', description = '' } = ticketDetails;
 
     // Prepare email content
     const emailSubject = `Complaint Acknowledgment - ${serviceId}`;
@@ -64,7 +63,6 @@ const sendEmail = async (email, customerName, serviceId, category, ticketDetails
       messageText += `Title: ${title}\n`;
     }
     messageText += `Category: ${category || 'General Inquiry'}\n`;
-    messageText += `Priority: ${priorityLabel}\n`;
     messageText += `Status: Received\n`;
     if (assignedToName) {
       messageText += `Assigned Engineer: ${assignedToName}\n`;
@@ -95,7 +93,6 @@ This is an automated message. Please do not reply to this email.
             <tr><td style="padding: 4px 0; color: #666; width: 140px;">Service ID:</td><td style="font-weight: 600; color: #333;">${serviceId}</td></tr>
             ${title ? `<tr><td style="padding: 4px 0; color: #666;">Title:</td><td style="color: #333;">${title}</td></tr>` : ''}
             <tr><td style="padding: 4px 0; color: #666;">Category:</td><td style="color: #333;">${category || 'General Inquiry'}</td></tr>
-            <tr><td style="padding: 4px 0; color: #666;">Priority:</td><td style="color: #333;"><span style="background: ${priority === 'high' ? '#fee2e2; color: #dc2626;' : priority === 'medium' ? '#fef3c7; color: #d97706;' : '#e0e7ff; color: #4f46e5;'} padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600;">${priorityLabel}</span></td></tr>
             <tr><td style="padding: 4px 0; color: #666;">Status:</td><td style="color: #333;"><span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600;">Received</span></td></tr>
             ${assignedToName ? `<tr><td style="padding: 4px 0; color: #666;">Assigned Engineer:</td><td style="color: #333;">${assignedToName}</td></tr>` : ''}
           </table>
@@ -199,7 +196,7 @@ const sendStatusUpdateEmail = async (email, customerName, serviceId, status, upd
     });
 
     const statusLabel = status.charAt(0).toUpperCase() + status.slice(1).replace(/-/g, ' ');
-    const { category = '', priority = '', assignedToName = '', updatedBy = '', notes = '', title = '' } = updateDetails;
+    const { category = '', assignedToName = '', updatedBy = '', notes = '', title = '' } = updateDetails;
     
     // Status color mapping
     const statusColors = {
@@ -231,9 +228,6 @@ const sendStatusUpdateEmail = async (email, customerName, serviceId, status, upd
     messageText += `Current Status: ${statusLabel}\n`;
     if (category) {
       messageText += `Category: ${category}\n`;
-    }
-    if (priority) {
-      messageText += `Priority: ${priority.charAt(0).toUpperCase() + priority.slice(1)}\n`;
     }
     if (assignedToName) {
       messageText += `Assigned Engineer: ${assignedToName}\n`;
@@ -272,7 +266,6 @@ This is an automated message. Please do not reply to this email.
               </td>
             </tr>
             ${category ? `<tr><td style="padding: 4px 0; color: #666;">Category:</td><td style="color: #333;">${category}</td></tr>` : ''}
-            ${priority ? `<tr><td style="padding: 4px 0; color: #666;">Priority:</td><td style="color: #333;"><span style="background: ${priority === 'high' ? '#fee2e2; color: #dc2626;' : priority === 'medium' ? '#fef3c7; color: #d97706;' : '#e0e7ff; color: #4f46e5;'} padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600;">${priority.charAt(0).toUpperCase() + priority.slice(1)}</span></td></tr>` : ''}
             ${assignedToName ? `<tr><td style="padding: 4px 0; color: #666;">Assigned Engineer:</td><td style="color: #333;">${assignedToName}</td></tr>` : ''}
             ${updatedBy ? `<tr><td style="padding: 4px 0; color: #666;">Updated By:</td><td style="color: #333;">${updatedBy}</td></tr>` : ''}
           </table>
@@ -369,22 +362,17 @@ const sendEngineerAssignmentEmail = async (email, engineerName, serviceId, custo
     });
 
     // Extract detailed information
-    const { 
-      title = '', 
-      priority = 'medium', 
-      customerPhone = '', 
-      customerEmail = '', 
-      siteAddress = '', 
+    const {
+      title = '',
+      customerPhone = '',
+      customerEmail = '',
+      siteAddress = '',
       description = '',
       latitude = null,
       longitude = null
     } = ticketDetails;
-    
-    const priorityLabel = priority.charAt(0).toUpperCase() + priority.slice(1);
-    const priorityColor = priority === 'high' ? '#dc2626' : priority === 'medium' ? '#d97706' : '#4f46e5';
-    const priorityBg = priority === 'high' ? '#fee2e2' : priority === 'medium' ? '#fef3c7' : '#e0e7ff';
 
-    const emailSubject = `🆕 New Ticket Assigned - ${serviceId} [${priorityLabel} Priority]`;
+    const emailSubject = `🆕 New Ticket Assigned - ${serviceId}`;
     
     let emailText = `Hello ${engineerName},\n\n`;
     emailText += `A new ticket has been assigned to you. Please review the details below and take necessary action urgently.\n\n`;
@@ -393,8 +381,7 @@ const sendEngineerAssignmentEmail = async (email, engineerName, serviceId, custo
     if (title) {
       emailText += `Title: ${title}\n`;
     }
-    emailText += `Category: ${category || 'General'}\n`;
-    emailText += `Priority: ${priorityLabel}\n\n`;
+    emailText += `Category: ${category || 'General'}\n\n`;
     
     emailText += `CUSTOMER DETAILS:\n`;
     emailText += `Name: ${customerName || 'N/A'}\n`;
@@ -435,18 +422,12 @@ const sendEngineerAssignmentEmail = async (email, engineerName, serviceId, custo
         <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.5;">Hello ${engineerName},</p>
         <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.5;">A new ticket has been assigned to you. Please review the details below and take necessary action urgently.</p>
         
-        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid ${priorityColor}; border-radius: 4px;">
+        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #667eea; border-radius: 4px;">
           <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #333; text-transform: uppercase; letter-spacing: 0.5px;">Ticket Details</h3>
           <table style="width: 100%; font-size: 13px; line-height: 1.6;">
             <tr><td style="padding: 4px 0; color: #666; width: 140px;">Service ID:</td><td style="font-weight: 600; color: #333;">${serviceId}</td></tr>
             ${title ? `<tr><td style="padding: 4px 0; color: #666;">Title:</td><td style="color: #333;">${title}</td></tr>` : ''}
             <tr><td style="padding: 4px 0; color: #666;">Category:</td><td style="color: #333;">${category || 'General'}</td></tr>
-            <tr>
-              <td style="padding: 4px 0; color: #666;">Priority:</td>
-              <td>
-                <span style="background: ${priorityBg}; color: ${priorityColor}; padding: 3px 10px; border-radius: 3px; font-size: 11px; font-weight: 600;">${priorityLabel}</span>
-              </td>
-            </tr>
           </table>
         </div>
         
@@ -527,11 +508,10 @@ const sendAdminTicketEmail = async (email, adminName, serviceId, status, custome
     });
 
     const statusLabel = status.charAt(0).toUpperCase() + status.slice(1).replace(/-/g, ' ');
-    const { 
-      category = '', 
-      priority = '', 
-      assignedToName = '', 
-      updatedBy = '', 
+    const {
+      category = '',
+      assignedToName = '',
+      updatedBy = '',
       actionType = 'updated',
       title = '',
       customerPhone = '',
@@ -569,9 +549,6 @@ const sendAdminTicketEmail = async (email, adminName, serviceId, status, custome
     emailText += `Current Status: ${statusLabel}\n`;
     if (category) {
       emailText += `Category: ${category}\n`;
-    }
-    if (priority) {
-      emailText += `Priority: ${priority.charAt(0).toUpperCase() + priority.slice(1)}\n`;
     }
     emailText += `\nCUSTOMER DETAILS:\n`;
     emailText += `Name: ${customerName || 'N/A'}\n`;
@@ -611,7 +588,6 @@ const sendAdminTicketEmail = async (email, adminName, serviceId, status, custome
               </td>
             </tr>
             ${category ? `<tr><td style="padding: 4px 0; color: #666;">Category:</td><td style="color: #333;">${category}</td></tr>` : ''}
-            ${priority ? `<tr><td style="padding: 4px 0; color: #666;">Priority:</td><td style="color: #333;"><span style="background: ${priority === 'high' ? '#fee2e2; color: #dc2626;' : priority === 'medium' ? '#fef3c7; color: #d97706;' : '#e0e7ff; color: #4f46e5;'} padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600;">${priority.charAt(0).toUpperCase() + priority.slice(1)}</span></td></tr>` : ''}
           </table>
         </div>
         

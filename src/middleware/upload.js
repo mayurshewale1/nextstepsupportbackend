@@ -11,17 +11,19 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
     const ext = (path.extname(file.originalname) || '.jpg').toLowerCase();
-    const safeExt = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext) ? ext : '.jpg';
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi', '.mkv', '.webm', '.3gp'];
+    const safeExt = allowedExts.includes(ext) ? ext : '.jpg';
     cb(null, `ticket-${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`);
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
-  if (allowed.test(file.originalname)) {
+  const allowedImages = /\.(jpg|jpeg|png|gif|webp)$/i;
+  const allowedVideos = /\.(mp4|mov|avi|mkv|webm|3gp)$/i;
+  if (allowedImages.test(file.originalname) || allowedVideos.test(file.originalname)) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files (jpg, png, gif, webp) are allowed'), false);
+    cb(new Error('Only image files (jpg, png, gif, webp) and video files (mp4, mov, avi, webm, 3gp) are allowed'), false);
   }
 };
 
@@ -29,7 +31,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: { 
-    fileSize: 10 * 1024 * 1024, // Increased to 10MB per file
+    fileSize: 50 * 1024 * 1024, // 50MB per file for videos
     files: 5 // Maximum 5 files per request
   },
 });
