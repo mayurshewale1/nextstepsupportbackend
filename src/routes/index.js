@@ -147,7 +147,7 @@ router.post(
   '/tickets/with-image',
   authenticateToken,
   authorizeRoles('User', 'Admin'),
-  upload.array('images', 5), // Allow up to 5 images
+  upload.fields([{ name: 'images', maxCount: 5 }, { name: 'video', maxCount: 1 }]), // Allow up to 5 images and 1 video
   TicketController.createTicketWithImage
 );
 router.put(

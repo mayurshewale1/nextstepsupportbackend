@@ -37,13 +37,8 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// Stricter rate limit for auth endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { success: false, message: 'Too many login attempts' },
-});
-app.use('/api/auth', authLimiter);
+// No strict rate limit on auth - device limit is enforced instead
+// Users can attempt login unlimited times, but device sessions are limited to 2 per user
 
 // Body parsing with size limit
 app.use(express.json({ limit: '10mb' }));

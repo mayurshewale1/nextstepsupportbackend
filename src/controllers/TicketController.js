@@ -1,3 +1,4 @@
+const path = require('path');
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { emitTicketCreated, emitTicketAssigned, emitTicketUpdated } = require('../socket');
@@ -462,7 +463,9 @@ class TicketController {
   static async createTicketWithImage(req, res, next) {
     try {
       console.log('[createTicketWithImage] Request received');
-      console.log('[createTicketWithImage] Files count:', req.files?.length || 0);
+      const imageCount = req.files?.images?.length || 0;
+      const videoCount = req.files?.video?.length || 0;
+      console.log(`[createTicketWithImage] Images: ${imageCount}, Video: ${videoCount}`);
       console.log('[createTicketWithImage] Files:', req.files);
       console.log('[createTicketWithImage] Body:', req.body);
       const body = req.body || {};
@@ -494,13 +497,32 @@ class TicketController {
         assignedTo = await findNearestEngineer(latitude, longitude);
       }
 
-      // Handle multiple images
+      // Handle multiple images and video from upload.fields()
       let imagePaths = [];
-      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
-        imagePaths = req.files.map(file => file.filename);
-      } else if (req.file) {
-        // Fallback for single file (backward compatibility)
-        imagePaths = [req.file.filename];
+      let videoPath = null;
+      
+      // req.files is an object when using upload.fields()
+      // { images: [file1, file2...], video: [file] }
+      if (req.files && typeof req.files === 'object') {
+        // Handle images array
+        if (req.files.images && Array.isArray(req.files.images)) {
+          imagePaths = req.files.images.map(file => file.filename);
+        }
+        // Handle video (single file in array)
+        if (req.files.video && Array.isArray(req.files.video) && req.files.video.length > 0) {
+          videoPath = req.files.video[0].filename;
+        }
+      }
+      // Fallback for legacy single file upload
+      else if (req.file) {
+        const ext = path.extname(req.file.originalname || req.file.filename).toLowerCase();
+        const videoExts = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
+        
+        if (videoExts.includes(ext)) {
+          videoPath = req.file.filename;
+        } else {
+          imagePaths = [req.file.filename];
+        }
       }
 
       const ticket = await Ticket.create({
@@ -515,6 +537,7 @@ class TicketController {
         longitude,
         imagePath: imagePaths.length > 0 ? imagePaths[0] : null, // Keep single image_path for backward compatibility
         imagePaths: imagePaths.length > 0 ? JSON.stringify(imagePaths) : null, // Store all images as JSON
+        videoPath: videoPath, // Store video path
         systemType,
       });
 

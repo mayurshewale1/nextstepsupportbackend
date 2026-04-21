@@ -6,8 +6,8 @@ const VALID_PRIORITY = ['low', 'medium', 'high'];
 class Ticket {
   static async create(ticket) {
     const result = await Database.query(
-      `INSERT INTO tickets (title, description, status, priority, category, created_by, assigned_to, latitude, longitude, image_path, image_paths, system_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO tickets (title, description, status, priority, category, created_by, assigned_to, latitude, longitude, image_path, image_paths, video_path, system_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
         ticket.title,
@@ -21,6 +21,7 @@ class Ticket {
         ticket.longitude !== undefined ? ticket.longitude : null,
         ticket.imagePath || ticket.image_path || null,
         ticket.imagePaths || ticket.image_paths || null,
+        ticket.videoPath || ticket.video_path || null,
         ticket.systemType || ticket.system_type || null,
       ]
     );
