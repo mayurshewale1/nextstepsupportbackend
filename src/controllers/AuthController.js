@@ -59,6 +59,16 @@ exports.login = async (req, res, next) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        phone: user.phone,
+        site_name: user.site_name,
+        site_address: user.site_address,
+        site_type: user.site_type,
+        system_type: user.system_type,
+        system_types: user.system_types,
+        car_count: user.car_count,
+        system_quantity: user.system_quantity,
+        state: user.state,
+        area: user.area,
       },
     };
 
@@ -184,6 +194,15 @@ exports.verifyAdminOtp = async (req, res, next) => {
         name: user.name,
         role: user.role,
         phone: user.phone,
+        site_name: user.site_name,
+        site_address: user.site_address,
+        site_type: user.site_type,
+        system_type: user.system_type,
+        system_types: user.system_types,
+        car_count: user.car_count,
+        system_quantity: user.system_quantity,
+        state: user.state,
+        area: user.area,
       },
     };
 

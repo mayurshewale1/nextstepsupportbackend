@@ -132,7 +132,7 @@ class User {
   }
 
   static async getAll(filters = {}) {
-    let query = 'SELECT id, user_id, email, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, car_count, system_quantity, state, area, area_head_id, is_active, created_at, updated_at FROM users WHERE 1=1';
+    let query = 'SELECT id, user_id, email, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, car_count, system_quantity, state, area, area_head_id, is_active, created_at, updated_at FROM users WHERE 1=1';
     const params = [];
     let paramIndex = 1;
 
