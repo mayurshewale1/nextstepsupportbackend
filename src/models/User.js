@@ -20,8 +20,8 @@ class User {
     }
 
     const result = await Database.query(
-      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, car_count, system_quantity, state, area, area_head_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, car_count, system_quantity, total_systems, state, area, area_head_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
        RETURNING *`,
       [
         user.userId || user.user_id,
@@ -39,6 +39,7 @@ class User {
         systemTypesJson,
         user.carCount || user.car_count || null,
         user.systemQuantity || user.system_quantity || null,
+        user.totalSystems || user.total_systems || null,
         user.state || null,
         user.area || null,
         user.areaHeadId || user.area_head_id || null,
@@ -132,7 +133,7 @@ class User {
   }
 
   static async getAll(filters = {}) {
-    let query = 'SELECT id, user_id, email, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, car_count, system_quantity, state, area, area_head_id, is_active, created_at, updated_at FROM users WHERE 1=1';
+    let query = 'SELECT id, user_id, email, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, car_count, system_quantity, total_systems, state, area, area_head_id, is_active, created_at, updated_at FROM users WHERE 1=1';
     const params = [];
     let paramIndex = 1;
 
@@ -162,7 +163,7 @@ class User {
   }
 
   static async update(id, user) {
-    const allowed = ['name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id', 'latitude', 'longitude', 'site_name', 'site_address', 'site_type', 'system_type', 'car_count', 'system_quantity', 'state', 'area', 'area_head_id'];
+    const allowed = ['name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id', 'latitude', 'longitude', 'site_name', 'site_address', 'site_type', 'system_type', 'system_types', 'car_count', 'system_quantity', 'total_systems', 'state', 'area', 'area_head_id'];
     const updates = [];
     const values = [];
     let paramIndex = 1;
@@ -173,12 +174,21 @@ class User {
       if (key === 'siteAddress') col = 'site_address';
       if (key === 'siteType') col = 'site_type';
       if (key === 'systemType') col = 'system_type';
+      if (key === 'systemTypes') col = 'system_types';
       if (key === 'carCount') col = 'car_count';
       if (key === 'systemQuantity') col = 'system_quantity';
+      if (key === 'totalSystems') col = 'total_systems';
       if (key === 'areaHeadId') col = 'area_head_id';
-      if (allowed.includes(col) && user[key] !== undefined) {
-        updates.push(`${col} = $${paramIndex}`);
+      // Handle system_types array - store as JSONB
+      if ((key === 'system_types' || key === 'systemTypes') && Array.isArray(user[key])) {
+        values.push(JSON.stringify(user[key]));
+      } else if (allowed.includes(col) && user[key] !== undefined) {
         values.push(user[key]);
+      } else {
+        continue;
+      }
+      if (allowed.includes(col)) {
+        updates.push(`${col} = $${paramIndex}`);
         paramIndex++;
       }
     }

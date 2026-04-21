@@ -71,7 +71,7 @@ class UserController {
 
   static async createUser(req, res, next) {
     try {
-      const { email, password, name, role, phone, userId, latitude, longitude, siteName, siteAddress, siteType, systemType, carCount, systemQuantity, state, area, areaHeadId } = req.body;
+      const { email, password, name, role, phone, userId, latitude, longitude, siteName, siteAddress, siteType, systemType, systemTypes, system_types, carCount, systemQuantity, totalSystems, state, area, areaHeadId } = req.body;
 
       const existingByEmail = await User.findByEmail(email);
       if (existingByEmail) {
@@ -103,8 +103,10 @@ class UserController {
         siteAddress: siteAddress || null,
         siteType: siteType || null,
         systemType: systemType || null,
+        systemTypes: systemTypes || system_types || null,
         carCount: carCount !== undefined ? carCount : null,
         systemQuantity: systemQuantity !== undefined ? systemQuantity : null,
+        totalSystems: totalSystems !== undefined ? totalSystems : null,
         state: state || null,
         area: area || null,
         areaHeadId: areaHeadId !== undefined ? areaHeadId : null,
