@@ -305,7 +305,7 @@ class TicketController {
 
   static async createTicket(req, res, next) {
     try {
-      const { title, description, priority, category, latitude, longitude, systemType } = req.body;
+      const { title, description, priority, category, latitude, longitude, systemType, systemNumber } = req.body;
       const createdBy = req.user?.id;
       if (!createdBy) {
         return res.status(401).json({
@@ -336,6 +336,7 @@ class TicketController {
         latitude: latitude !== undefined ? latitude : null,
         longitude: longitude !== undefined ? longitude : null,
         systemType: systemType || null,
+        systemNumber: systemNumber || null,
       });
 
       // Generate service ID for WhatsApp
@@ -487,6 +488,7 @@ class TicketController {
       const priority = body.priority || 'medium';
       const category = body.category || null;
       const systemType = body.systemType || body.system_type || null;
+      const systemNumber = body.systemNumber || body.system_number || null;
       let latitude = parseFloat(body.latitude);
       let longitude = parseFloat(body.longitude);
       if (isNaN(latitude)) latitude = null;
@@ -539,6 +541,7 @@ class TicketController {
         imagePaths: imagePaths.length > 0 ? JSON.stringify(imagePaths) : null, // Store all images as JSON
         videoPath: videoPath, // Store video path
         systemType,
+        systemNumber,
       });
 
       // Generate service ID for WhatsApp
