@@ -66,7 +66,7 @@ class ReportController {
       const tickets = result.rows;
 
       const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet(\`Tickets - \${engineer.name}\`);
+      const worksheet = workbook.addWorksheet(`Tickets - ${engineer.name}`);
 
       worksheet.columns = [
         { header: 'Ticket ID', key: 'id', width: 10 },
@@ -87,7 +87,7 @@ class ReportController {
       });
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', \`attachment; filename="engineer_\${id}_tickets.xlsx"\`);
+      res.setHeader('Content-Disposition', `attachment; filename="engineer_${id}_tickets.xlsx"`);
       
       await workbook.xlsx.write(res);
       res.end();
