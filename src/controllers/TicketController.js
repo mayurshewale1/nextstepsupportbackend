@@ -3,6 +3,7 @@ const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { emitTicketCreated, emitTicketAssigned, emitTicketUpdated } = require('../socket');
 const { notifyRoles, notifyUsers } = require('../services/firebase');
+const { sendTicketAssignedNotification } = require('../services/fcmService');
 const { sendWhatsApp, sendStatusUpdate, sendOtpWhatsApp, formatPhoneNumber, sendEngineerAssignmentNotification, sendAdminTicketNotification } = require('../services/whatsappService');
 const { sendEmail, sendStatusUpdateEmail, sendEngineerAssignmentEmail, sendAdminTicketEmail } = require('../services/emailService');
 
@@ -214,20 +215,27 @@ class TicketController {
   }
 
   static async sendAssignedNotifications(ticket) {
-    await notifyUsers([ticket.assigned_to], {
-      notification: {
-        title: 'Complaint Assigned',
-        body: `Complaint #${ticket.id} has been assigned to you.`,
-      },
-      data: { type: 'ticket_assigned', ticketId: String(ticket.id) },
-    });
+    // Use new fcmService for engineer notification (better killed-state support)
+    if (ticket.assigned_to) {
+      try {
+        const result = await sendTicketAssignedNotification(ticket.assigned_to, ticket);
+        console.log(`[FCM] Assignment notification result:`, result);
+      } catch (error) {
+        console.error('[FCM] Failed to send assignment notification:', error.message);
+      }
+    }
 
+    // Notify admins about the assignment
     await notifyRoles(['admin'], {
       notification: {
         title: 'Complaint Assignment Updated',
-        body: `Complaint #${ticket.id} assignment updated.`,
+        body: `Complaint #${ticket.id} assigned to ${ticket.engineer_name || 'engineer'}.`,
       },
-      data: { type: 'ticket_updated', ticketId: String(ticket.id) },
+      data: { 
+        type: 'ticket_assigned', 
+        ticketId: String(ticket.id),
+        screen: 'TicketDetails'
+      },
     });
   }
 

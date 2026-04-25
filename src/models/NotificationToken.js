@@ -46,6 +46,22 @@ class NotificationToken {
     );
     return result.rows.map((r) => r.token).filter(Boolean);
   }
+
+  static async unregisterByToken(token) {
+    const result = await Database.query(
+      'DELETE FROM notification_tokens WHERE token = $1',
+      [token]
+    );
+    return result.rowCount > 0;
+  }
+
+  static async getUserTokens(userId) {
+    const result = await Database.query(
+      'SELECT token, platform, updated_at FROM notification_tokens WHERE user_id = $1 ORDER BY updated_at DESC',
+      [userId]
+    );
+    return result.rows;
+  }
 }
 
 module.exports = NotificationToken;

@@ -118,6 +118,18 @@ router.delete(
   authorizeRoles('Admin', 'Engineer', 'User'),
   NotificationController.unregisterDeviceToken
 );
+router.get(
+  '/notifications/my-tokens',
+  authenticateToken,
+  authorizeRoles('Admin', 'Engineer', 'User'),
+  NotificationController.getMyTokens
+);
+router.post(
+  '/notifications/test',
+  authenticateToken,
+  authorizeRoles('Admin', 'Engineer', 'User'),
+  NotificationController.sendTest
+);
 
 // Tickets
 router.get(
