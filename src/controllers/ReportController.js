@@ -59,10 +59,10 @@ class ReportController {
         SELECT t.*, u.name as customer_name, u.phone as customer_phone
         FROM tickets t
         LEFT JOIN users u ON t.created_by = u.id
-        WHERE t.assigned_to = $1 AND (t.status = 'resolved' OR t.status = 'closed')
+        WHERE t.assigned_to = $1 AND t.status IN ('completed', 'resolved', 'closed')
         ORDER BY t.resolved_at DESC NULLS LAST
       `;
-      const result = await Database.query(query, [id]);
+      const result = await Database.query(query, [engineer.id]);
       const tickets = result.rows;
 
       const workbook = new exceljs.Workbook();
