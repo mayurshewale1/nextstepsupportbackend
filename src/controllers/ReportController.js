@@ -24,7 +24,7 @@ class ReportController {
         { header: 'System Type', key: 'system_type', width: 20 },
         { header: 'System Number', key: 'system_number', width: 20 },
         { header: 'Created At', key: 'created_at', width: 25 },
-        { header: 'Completed At', key: 'completed_at', width: 25 },
+        { header: 'Resolved At', key: 'resolved_at', width: 25 },
         { header: 'Rating', key: 'rating', width: 10 },
         { header: 'Feedback', key: 'feedback_comment', width: 30 },
       ];
@@ -60,7 +60,7 @@ class ReportController {
         FROM tickets t
         LEFT JOIN users u ON t.created_by = u.id
         WHERE t.assigned_to = $1 AND (t.status = 'resolved' OR t.status = 'closed')
-        ORDER BY t.completed_at DESC NULLS LAST
+        ORDER BY t.resolved_at DESC NULLS LAST
       `;
       const result = await Database.query(query, [id]);
       const tickets = result.rows;
@@ -75,7 +75,7 @@ class ReportController {
         { header: 'Title', key: 'title', width: 30 },
         { header: 'Category', key: 'category', width: 15 },
         { header: 'Status', key: 'status', width: 15 },
-        { header: 'Completed At', key: 'completed_at', width: 25 },
+        { header: 'Resolved At', key: 'resolved_at', width: 25 },
         { header: 'Rating', key: 'rating', width: 10 },
         { header: 'Customer Feedback', key: 'feedback_comment', width: 40 },
       ];
