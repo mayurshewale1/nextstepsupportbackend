@@ -54,13 +54,13 @@ class ReportController {
         return res.status(404).json({ success: false, message: 'Engineer not found' });
       }
 
-      // Find tickets assigned to this engineer and solved
+      // Find all tickets assigned to this engineer (all statuses)
       const query = `
         SELECT t.*, u.name as customer_name, u.phone as customer_phone
         FROM tickets t
         LEFT JOIN users u ON t.created_by = u.id
-        WHERE t.assigned_to = $1 AND t.status IN ('completed', 'resolved', 'closed')
-        ORDER BY t.resolved_at DESC NULLS LAST
+        WHERE t.assigned_to = $1
+        ORDER BY t.resolved_at DESC NULLS LAST, t.created_at DESC
       `;
       const result = await Database.query(query, [engineer.id]);
       const tickets = result.rows;
