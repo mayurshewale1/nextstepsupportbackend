@@ -4,6 +4,7 @@ const AuthController = require('../controllers/AuthController');
 const TicketController = require('../controllers/TicketController');
 const VisitController = require('../controllers/visitController');
 const NotificationController = require('../controllers/NotificationController');
+const ReportController = require('../controllers/ReportController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { loginRules, changePasswordRules, validate: authValidate } = require('../validators/authValidator');
 const {
@@ -251,6 +252,20 @@ router.get(
   authenticateToken,
   authorizeRoles('Admin'),
   VisitController.checkVisitNeeded
+);
+
+// Reports
+router.get(
+  '/reports/tickets-excel',
+  authenticateToken,
+  authorizeRoles('Admin', 'area_head'),
+  ReportController.downloadTicketsExcel
+);
+router.get(
+  '/reports/engineer/:id/tickets-excel',
+  authenticateToken,
+  authorizeRoles('Admin', 'area_head'),
+  ReportController.downloadEngineerTicketsExcel
 );
 
 // Protected dashboard routes
