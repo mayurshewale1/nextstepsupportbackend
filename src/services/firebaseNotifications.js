@@ -139,6 +139,9 @@ const DefaultContent = {
 /**
  * Build FCM message payload optimized for killed-state delivery
  * 
+ * CRITICAL: Must include 'notification' field for Android to display when app is killed!
+ * Data-only messages will NOT show when app is removed from recent apps.
+ * 
  * @param {string} token - FCM device token
  * @param {Object} payload - Notification payload
  * @returns {Object} FCM message object
@@ -159,21 +162,29 @@ function buildMessage(token, payload) {
   const isHighPriority = channelId === Channels.HIGH_PRIORITY;
   
   /**
-   * CRITICAL FCM PAYLOAD STRUCTURE
+   * CRITICAL FCM PAYLOAD STRUCTURE FOR KILLED-STATE SUPPORT:
    * 
-   * 1. notification field: REMOVED from root and android to make this a DATA-ONLY message on Android.
-   *    If 'notification' is present, Android OS intercepts it and background handling fails when killed!
+   * 1. notification field: REQUIRED! Android OS displays this when app is killed.
+   *    Without this, NO NOTIFICATION appears when app is swiped away!
    * 
-   * 2. data field: Custom data passed to the app. Now contains title and body for the Native handler to use.
+   * 2. data field: Custom data passed to app when user taps notification.
    * 
-   * 3. android.priority: 'high' bypasses Doze mode and App Standby and wakes up the app.
+   * 3. android.priority: 'high' bypasses Doze mode and App Standby.
    * 
-   * 4. apns.payload.aps.alert: iOS still needs this to show notifications.
+   * 4. android.notification.channelId: Must match client-side channel.
+   * 
+   * 5. apns.payload.aps.alert: iOS needs this to show notifications.
    */
   const message = {
     token: token,
     
-    // Data payload for app handling - Making it a Data-Only message for Android
+    // REQUIRED: This is what Android displays when app is killed
+    notification: {
+      title: String(title),
+      body: String(body),
+    },
+    
+    // Data payload for app handling when notification is tapped
     data: {
       // Ensure all values are strings (FCM requirement)
       title: String(title),
@@ -185,21 +196,34 @@ function buildMessage(token, payload) {
       message: String(data.message || ''),
       priority: String(data.priority || 'normal'),
       channelId: String(channelId),
-      click_action: 'FLUTTER_NOTIFICATION_CLICK',
+      screen: String(data.screen || 'TicketDetails'),
+      click_action: 'OPEN_TICKET',
       // Add timestamp for tracking
       sentAt: String(Date.now()),
       // Server-side tracking
       serverMessageId: payload.messageId || `msg_${Date.now()}`
     },
     
-    // Android configuration - No "notification" object here!
+    // Android configuration
     android: {
       // High priority for immediate delivery even in Doze mode
       priority: isHighPriority ? 'high' : 'normal',
       // TTL: 24 hours for urgent, 1 hour for normal
       ttl: isHighPriority ? 86400 : 3600,
       // Direct boot mode - deliver even if device locked after restart
-      directBootOk: true
+      directBootOk: true,
+      // Android notification configuration
+      notification: {
+        // Must match the channel ID created in client
+        channelId: String(channelId),
+        sound: 'default',
+        // High priority for heads-up notification
+        priority: isHighPriority ? 'high' : 'default',
+        // Public visibility shows on lock screen
+        visibility: 'public',
+        // Don't make it sticky (user can dismiss)
+        sticky: false,
+      }
     },
     
     // iOS configuration (APNs)
