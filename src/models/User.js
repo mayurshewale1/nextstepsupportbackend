@@ -27,9 +27,15 @@ class User {
       systemTypeQuantitiesJson = JSON.stringify(user.system_type_quantities);
     }
 
+    // Handle customSystems - store as JSONB
+    let customSystemsJson = null;
+    if (user.customSystems && Array.isArray(user.customSystems) && user.customSystems.length > 0) {
+      customSystemsJson = JSON.stringify(user.customSystems);
+    }
+
     const result = await Database.query(
-      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, system_type_quantities, car_count, total_systems, state, area, area_head_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, system_type_quantities, custom_systems, car_count, total_systems, state, area, area_head_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
        RETURNING *`,
       [
         user.userId || user.user_id,
@@ -46,6 +52,7 @@ class User {
         user.systemType || user.system_type || (systemTypesJson ? systemTypesJson[0] : null), // Keep first type in old column for compatibility
         systemTypesJson,
         systemTypeQuantitiesJson,
+        customSystemsJson,
         user.carCount || user.car_count || null,
         user.totalSystems || user.total_systems || null,
         user.state || null,
@@ -171,7 +178,7 @@ class User {
   }
 
   static async update(id, user) {
-    const allowed = ['name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id', 'latitude', 'longitude', 'site_name', 'site_address', 'site_type', 'system_type', 'system_types', 'system_type_quantities', 'car_count', 'total_systems', 'state', 'area', 'area_head_id'];
+    const allowed = ['name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id', 'latitude', 'longitude', 'site_name', 'site_address', 'site_type', 'system_type', 'system_types', 'system_type_quantities', 'custom_systems', 'car_count', 'total_systems', 'state', 'area', 'area_head_id'];
     const updates = [];
     const values = [];
     let paramIndex = 1;
@@ -184,6 +191,7 @@ class User {
       if (key === 'systemType') col = 'system_type';
       if (key === 'systemTypes') col = 'system_types';
       if (key === 'systemTypeQuantities') col = 'system_type_quantities';
+      if (key === 'customSystems') col = 'custom_systems';
       if (key === 'carCount') col = 'car_count';
       if (key === 'totalSystems') col = 'total_systems';
       if (key === 'areaHeadId') col = 'area_head_id';
@@ -192,6 +200,9 @@ class User {
         values.push(JSON.stringify(user[key]));
       } else if ((key === 'system_type_quantities' || key === 'systemTypeQuantities') && typeof user[key] === 'object') {
         // Handle system_type_quantities object - store as JSONB
+        values.push(JSON.stringify(user[key]));
+      } else if ((key === 'custom_systems' || key === 'customSystems') && Array.isArray(user[key])) {
+        // Handle custom_systems array - store as JSONB
         values.push(JSON.stringify(user[key]));
       } else if (allowed.includes(col) && user[key] !== undefined) {
         values.push(user[key]);
