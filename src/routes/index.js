@@ -103,7 +103,7 @@ router.put('/users/me/location', authenticateToken, authorizeRoles('Engineer'), 
 router.put('/users/:id', authenticateToken, authorizeRoles('Admin'), updateUserRules, userValidate, UserController.updateUser);
 router.put('/users/:id/reset-password', authenticateToken, resetPasswordRules, userValidate, UserController.resetUserPassword);
 router.post('/users/bulk-reset-password', authenticateToken, authorizeRoles('Admin'), UserController.bulkResetPasswords);
-router.delete('/users/:id', authenticateToken, authorizeRoles('Admin'), userIdRules, userValidate, UserController.deleteUser);
+router.delete('/users/:id', authenticateToken, userIdRules, userValidate, UserController.deleteUser);
 
 // Notification device tokens
 router.post(

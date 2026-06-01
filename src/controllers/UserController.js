@@ -231,7 +231,32 @@ class UserController {
   static async deleteUser(req, res, next) {
     try {
       const { id } = req.params;
-      const success = await User.delete(parseInt(id, 10));
+      const userIdToDelete = parseInt(id, 10);
+      const currentUserId = req.user?.id;
+      const currentUserRole = req.user?.role?.toLowerCase();
+
+      // Authorization check: Admin can delete any user, users can only delete their own account
+      if (currentUserRole !== 'admin' && currentUserId !== userIdToDelete) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only delete your own account',
+        });
+      }
+
+      // Prevent users from deleting themselves if they are the last admin
+      if (currentUserRole === 'admin' && currentUserId === userIdToDelete) {
+        // Check if this is the only admin
+        const allUsers = await User.getAll();
+        const adminCount = allUsers.filter(u => u.role?.toLowerCase() === 'admin').length;
+        if (adminCount <= 1) {
+          return res.status(400).json({
+            success: false,
+            message: 'Cannot delete the last admin account',
+          });
+        }
+      }
+
+      const success = await User.delete(userIdToDelete);
       if (!success) {
         return res.status(404).json({
           success: false,
