@@ -129,7 +129,7 @@ class Ticket {
   }
 
   static async update(id, updates) {
-    const allowed = ['title', 'description', 'status', 'priority', 'category', 'assigned_to', 'rating', 'resolution', 'feedback_comment', 'system_type', 'system_number'];
+    const allowed = ['title', 'description', 'status', 'priority', 'category', 'assigned_to', 'rating', 'resolution', 'feedback_comment', 'feedback_image_path', 'system_type', 'system_number'];
     const setClauses = [];
     const values = [];
     let paramIndex = 1;

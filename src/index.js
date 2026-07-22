@@ -11,6 +11,7 @@ const Database = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
 const routes = require('./routes');
 const { initSocket } = require('./socket');
+const { startContractReminderScheduler } = require('./services/contractReminderService');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -73,6 +74,7 @@ const startServer = async () => {
       console.log(`\n✓ Server running on http://localhost:${config.port}`);
       console.log(`✓ Environment: ${config.nodeEnv}`);
       console.log(`✓ API Version: ${config.apiVersion}\n`);
+      startContractReminderScheduler();
     });
   } catch (error) {
     console.error('Failed to start server:', error);

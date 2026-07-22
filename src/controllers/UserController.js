@@ -71,7 +71,15 @@ class UserController {
 
   static async createUser(req, res, next) {
     try {
-      const { email, password, name, role, phone, userId, latitude, longitude, siteName, siteAddress, siteType, systemType, systemTypes, system_types, systemTypeQuantities, system_type_quantities, customSystems, carCount, totalSystems, state, area, areaHeadId } = req.body;
+      const {
+        email, password, name, role, phone, userId, latitude, longitude,
+        siteName, siteAddress, siteType, systemType, systemTypes, system_types,
+        systemTypeQuantities, system_type_quantities, customSystems, carCount,
+        totalSystems, state, area, areaHeadId,
+        isBuilderDeveloper, is_builder_developer, projectName, project_name,
+        projectId, project_id, systemHandoverDates, system_handover_dates,
+        contractEndDate, contract_end_date,
+      } = req.body;
 
       const existingByEmail = await User.findByEmail(email);
       if (existingByEmail) {
@@ -111,6 +119,11 @@ class UserController {
         state: state || null,
         area: area || null,
         areaHeadId: areaHeadId !== undefined ? areaHeadId : null,
+        isBuilderDeveloper: isBuilderDeveloper ?? is_builder_developer ?? false,
+        projectName: projectName || project_name || null,
+        projectId: projectId || project_id || null,
+        systemHandoverDates: systemHandoverDates || system_handover_dates || null,
+        contractEndDate: contractEndDate || contract_end_date || null,
       });
 
       res.status(201).json({

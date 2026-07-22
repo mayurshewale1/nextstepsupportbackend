@@ -90,9 +90,9 @@ class Visit {
       paramIndex++;
     }
 
-    // Filter for AMC users only
+    // Filter for DLP / AMC / CMC contract users
     if (filters.amcOnly) {
-      query += ` AND (LOWER(u.site_type) = 'amc' OR LOWER(u.site_type) LIKE '%amc%')`;
+      query += ` AND LOWER(u.site_type) IN ('dlp', 'amc', 'cmc')`;
     }
 
     query += ' ORDER BY pv.visit_date DESC';

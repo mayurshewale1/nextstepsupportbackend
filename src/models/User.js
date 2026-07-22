@@ -9,9 +9,47 @@ function sanitizeUser(user) {
   return safe;
 }
 
+function isContractSiteType(siteType) {
+  const t = String(siteType || '').toLowerCase().trim();
+  return t === 'amc' || t === 'cmc' || t === 'dlp';
+}
+
+function toJsonb(value) {
+  if (value == null) return null;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return JSON.stringify(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === 'object') return JSON.stringify(value);
+  return null;
+}
+
+function parseHandoverDates(value) {
+  if (!value) return null;
+  let arr = value;
+  if (typeof value === 'string') {
+    try {
+      arr = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  const cleaned = arr
+    .filter((item) => item && (item.systemType || item.system_type) && (item.handoverDate || item.handover_date))
+    .map((item) => ({
+      systemType: item.systemType || item.system_type,
+      handoverDate: item.handoverDate || item.handover_date,
+    }));
+  return cleaned.length > 0 ? JSON.stringify(cleaned) : null;
+}
+
 class User {
   static async create(user) {
-    // Handle systemTypes array - store as JSONB
     let systemTypesJson = null;
     if (user.systemTypes && Array.isArray(user.systemTypes) && user.systemTypes.length > 0) {
       systemTypesJson = JSON.stringify(user.systemTypes);
@@ -19,7 +57,6 @@ class User {
       systemTypesJson = JSON.stringify(user.system_types);
     }
 
-    // Handle systemTypeQuantities - store as JSONB
     let systemTypeQuantitiesJson = null;
     if (user.systemTypeQuantities && typeof user.systemTypeQuantities === 'object' && Object.keys(user.systemTypeQuantities).length > 0) {
       systemTypeQuantitiesJson = JSON.stringify(user.systemTypeQuantities);
@@ -27,15 +64,31 @@ class User {
       systemTypeQuantitiesJson = JSON.stringify(user.system_type_quantities);
     }
 
-    // Handle customSystems - store as JSONB
     let customSystemsJson = null;
     if (user.customSystems && Array.isArray(user.customSystems) && user.customSystems.length > 0) {
       customSystemsJson = JSON.stringify(user.customSystems);
     }
 
+    const systemHandoverDatesJson = parseHandoverDates(
+      user.systemHandoverDates || user.system_handover_dates
+    );
+
+    const isBuilder =
+      user.isBuilderDeveloper === true ||
+      user.is_builder_developer === true ||
+      user.isBuilderDeveloper === 'true' ||
+      user.is_builder_developer === 'true';
+
     const result = await Database.query(
-      `INSERT INTO users (user_id, email, password, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, system_type_quantities, custom_systems, car_count, total_systems, state, area, area_head_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      `INSERT INTO users (
+         user_id, email, password, name, role, phone, latitude, longitude,
+         site_name, site_address, site_type, system_type, system_types,
+         system_type_quantities, custom_systems, car_count, total_systems,
+         state, area, area_head_id,
+         is_builder_developer, project_name, project_id,
+         system_handover_dates, contract_end_date
+       )
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
        RETURNING *`,
       [
         user.userId || user.user_id,
@@ -49,7 +102,7 @@ class User {
         user.siteName || user.site_name || null,
         user.siteAddress || user.site_address || null,
         user.siteType || user.site_type || null,
-        user.systemType || user.system_type || (systemTypesJson ? systemTypesJson[0] : null), // Keep first type in old column for compatibility
+        user.systemType || user.system_type || (systemTypesJson ? JSON.parse(systemTypesJson)[0] : null),
         systemTypesJson,
         systemTypeQuantitiesJson,
         customSystemsJson,
@@ -58,6 +111,11 @@ class User {
         user.state || null,
         user.area || null,
         user.areaHeadId || user.area_head_id || null,
+        isBuilder,
+        isBuilder ? (user.projectName || user.project_name || null) : null,
+        isBuilder ? (user.projectId || user.project_id || null) : null,
+        systemHandoverDatesJson,
+        user.contractEndDate || user.contract_end_date || null,
       ]
     );
     return result.rows[0];
@@ -125,9 +183,12 @@ class User {
   static async findByAreaHeadId(areaHeadId) {
     const result = await Database.query(
       `SELECT id, user_id, email, name, role, phone, latitude, longitude, 
-              site_name, site_address, site_type, system_type, car_count, 
-              system_quantity, state, area, area_head_id, is_active, 
-              created_at, updated_at 
+              site_name, site_address, site_type, system_type, system_types,
+              system_type_quantities, custom_systems, car_count, 
+              system_quantity, total_systems, state, area, area_head_id,
+              is_builder_developer, project_name, project_id,
+              system_handover_dates, contract_end_date,
+              is_active, created_at, updated_at 
        FROM users 
        WHERE area_head_id = $1 AND LOWER(role) IN ('user', 'engineer')
        ORDER BY role ASC, name ASC`,
@@ -148,7 +209,14 @@ class User {
   }
 
   static async getAll(filters = {}) {
-    let query = 'SELECT id, user_id, email, name, role, phone, latitude, longitude, site_name, site_address, site_type, system_type, system_types, car_count, system_quantity, total_systems, state, area, area_head_id, is_active, created_at, updated_at FROM users WHERE 1=1';
+    let query = `SELECT id, user_id, email, name, role, phone, latitude, longitude,
+                        site_name, site_address, site_type, system_type, system_types,
+                        system_type_quantities, custom_systems, car_count, system_quantity,
+                        total_systems, state, area, area_head_id,
+                        is_builder_developer, project_name, project_id,
+                        system_handover_dates, contract_end_date,
+                        is_active, created_at, updated_at
+                 FROM users WHERE 1=1`;
     const params = [];
     let paramIndex = 1;
 
@@ -177,43 +245,109 @@ class User {
     }
   }
 
+  /**
+   * Users whose DLP/AMC/CMC contract ends in exactly N days (for reminders)
+   */
+  static async findContractRemindersDue(daysAhead = 8) {
+    const result = await Database.query(
+      `SELECT id, user_id, email, name, phone, site_type, site_name, contract_end_date, area_head_id
+       FROM users
+       WHERE is_active = true
+         AND contract_end_date IS NOT NULL
+         AND LOWER(site_type) IN ('dlp', 'amc', 'cmc')
+         AND contract_end_date = (CURRENT_DATE + ($1::int || ' days')::interval)::date
+         AND (
+           contract_reminder_sent_at IS NULL
+           OR contract_reminder_sent_at::date < CURRENT_DATE
+         )`,
+      [daysAhead]
+    );
+    return result.rows;
+  }
+
+  static async markContractReminderSent(id) {
+    await Database.query(
+      `UPDATE users SET contract_reminder_sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [id]
+    );
+  }
+
   static async update(id, user) {
-    const allowed = ['name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id', 'latitude', 'longitude', 'site_name', 'site_address', 'site_type', 'system_type', 'system_types', 'system_type_quantities', 'custom_systems', 'car_count', 'total_systems', 'state', 'area', 'area_head_id'];
+    const allowed = [
+      'name', 'email', 'role', 'phone', 'avatar_url', 'is_active', 'user_id',
+      'latitude', 'longitude', 'site_name', 'site_address', 'site_type',
+      'system_type', 'system_types', 'system_type_quantities', 'custom_systems',
+      'car_count', 'total_systems', 'state', 'area', 'area_head_id',
+      'is_builder_developer', 'project_name', 'project_id',
+      'system_handover_dates', 'contract_end_date', 'contract_reminder_sent_at',
+    ];
     const updates = [];
     const values = [];
     let paramIndex = 1;
 
+    const keyMap = {
+      userId: 'user_id',
+      siteName: 'site_name',
+      siteAddress: 'site_address',
+      siteType: 'site_type',
+      systemType: 'system_type',
+      systemTypes: 'system_types',
+      systemTypeQuantities: 'system_type_quantities',
+      customSystems: 'custom_systems',
+      carCount: 'car_count',
+      totalSystems: 'total_systems',
+      areaHeadId: 'area_head_id',
+      isBuilderDeveloper: 'is_builder_developer',
+      projectName: 'project_name',
+      projectId: 'project_id',
+      systemHandoverDates: 'system_handover_dates',
+      contractEndDate: 'contract_end_date',
+      contractReminderSentAt: 'contract_reminder_sent_at',
+    };
+
     for (const key of Object.keys(user)) {
-      let col = key === 'userId' ? 'user_id' : key;
-      if (key === 'siteName') col = 'site_name';
-      if (key === 'siteAddress') col = 'site_address';
-      if (key === 'siteType') col = 'site_type';
-      if (key === 'systemType') col = 'system_type';
-      if (key === 'systemTypes') col = 'system_types';
-      if (key === 'systemTypeQuantities') col = 'system_type_quantities';
-      if (key === 'customSystems') col = 'custom_systems';
-      if (key === 'carCount') col = 'car_count';
-      if (key === 'totalSystems') col = 'total_systems';
-      if (key === 'areaHeadId') col = 'area_head_id';
-      // Handle system_types array - store as JSONB
-      if ((key === 'system_types' || key === 'systemTypes') && Array.isArray(user[key])) {
+      const col = keyMap[key] || key;
+      if (!allowed.includes(col) || user[key] === undefined) continue;
+
+      if ((col === 'system_types' || col === 'custom_systems') && Array.isArray(user[key])) {
         values.push(JSON.stringify(user[key]));
-      } else if ((key === 'system_type_quantities' || key === 'systemTypeQuantities') && typeof user[key] === 'object') {
-        // Handle system_type_quantities object - store as JSONB
+      } else if (col === 'system_type_quantities' && typeof user[key] === 'object') {
         values.push(JSON.stringify(user[key]));
-      } else if ((key === 'custom_systems' || key === 'customSystems') && Array.isArray(user[key])) {
-        // Handle custom_systems array - store as JSONB
-        values.push(JSON.stringify(user[key]));
-      } else if (allowed.includes(col) && user[key] !== undefined) {
-        values.push(user[key]);
+      } else if (col === 'system_handover_dates') {
+        values.push(parseHandoverDates(user[key]));
+      } else if (col === 'is_builder_developer') {
+        values.push(user[key] === true || user[key] === 'true');
       } else {
-        continue;
+        values.push(user[key] === '' ? null : user[key]);
       }
-      if (allowed.includes(col)) {
-        updates.push(`${col} = $${paramIndex}`);
-        paramIndex++;
+
+      updates.push(`${col} = $${paramIndex}`);
+      paramIndex++;
+    }
+
+    // Clear project fields when builder flag is turned off
+    if (Object.prototype.hasOwnProperty.call(user, 'isBuilderDeveloper') ||
+        Object.prototype.hasOwnProperty.call(user, 'is_builder_developer')) {
+      const isBuilder =
+        user.isBuilderDeveloper === true ||
+        user.is_builder_developer === true ||
+        user.isBuilderDeveloper === 'true' ||
+        user.is_builder_developer === 'true';
+      if (!isBuilder) {
+        if (!updates.some((u) => u.startsWith('project_name'))) {
+          updates.push(`project_name = $${paramIndex}`);
+          values.push(null);
+          paramIndex++;
+        }
+        if (!updates.some((u) => u.startsWith('project_id'))) {
+          updates.push(`project_id = $${paramIndex}`);
+          values.push(null);
+          paramIndex++;
+        }
       }
     }
+
     if (updates.length === 0) return null;
 
     values.push(id);
@@ -244,4 +378,5 @@ class User {
 }
 
 User.sanitizeUser = sanitizeUser;
+User.isContractSiteType = isContractSiteType;
 module.exports = User;

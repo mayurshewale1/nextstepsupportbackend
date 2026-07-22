@@ -77,6 +77,7 @@ const NotificationTypes = {
   ADMIN_REPLY: 'admin_reply',
   TICKET_RESOLVED: 'ticket_resolved',
   VISIT_REMINDER: 'visit_reminder',
+  CONTRACT_REMINDER: 'contract_reminder',
   URGENT_ALERT: 'urgent_alert',
   ANNOUNCEMENT: 'announcement'
 };
@@ -122,6 +123,11 @@ const DefaultContent = {
   [NotificationTypes.VISIT_REMINDER]: {
     title: '⏰ Visit Reminder',
     body: (data) => `Engineer visit scheduled ${data.visitTime ? `at ${data.visitTime}` : 'soon'}`,
+    channel: Channels.REMINDERS
+  },
+  [NotificationTypes.CONTRACT_REMINDER]: {
+    title: '⏰ Contract Reminder',
+    body: (data) => `${(data.contractType || 'Contract').toUpperCase()} ends in ${data.daysAhead || 8} days`,
     channel: Channels.REMINDERS
   },
   [NotificationTypes.URGENT_ALERT]: {

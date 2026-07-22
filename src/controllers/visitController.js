@@ -19,12 +19,11 @@ class VisitController {
         });
       }
 
-      // Check if user is AMC type
-      const siteType = (user.site_type || '').toLowerCase();
-      if (!siteType.includes('amc')) {
+      // Check if user has DLP / AMC / CMC contract
+      if (!User.isContractSiteType(user.site_type)) {
         return res.status(400).json({
           success: false,
-          message: 'Preventive visits are only for AMC users',
+          message: 'Preventive visits are only for DLP / AMC / CMC users',
         });
       }
 

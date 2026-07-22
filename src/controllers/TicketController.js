@@ -912,7 +912,8 @@ class TicketController {
   static async submitFeedback(req, res, next) {
     try {
       const { id } = req.params;
-      const { rating, feedback_comment: feedbackComment } = req.body;
+      const rating = req.body.rating != null ? Number(req.body.rating) : null;
+      const feedbackComment = req.body.feedback_comment ?? req.body.feedbackComment ?? null;
       const ticket = await Ticket.findById(parseInt(id, 10));
       if (!ticket) {
         return res.status(404).json({
@@ -937,13 +938,19 @@ class TicketController {
       const updates = {};
       if (rating != null && rating >= 1 && rating <= 5) updates.rating = rating;
       if (feedbackComment != null) updates.feedback_comment = feedbackComment;
+
+      // Optional engineer form photo
+      const feedbackFile = req.file || (req.files && (req.files.feedback_image?.[0] || req.files.image?.[0]));
+      if (feedbackFile) {
+        updates.feedback_image_path = feedbackFile.filename;
+      }
       
       // Auto-convert "completed" to "resolved" when feedback is submitted
       if (ticket.status === 'completed') {
         updates.status = 'resolved';
       }
       
-      if (Object.keys(updates).length === 0) {
+      if (Object.keys(updates).length === 0 || updates.rating == null) {
         return res.status(400).json({
           success: false,
           message: 'Rating (1-5) is required',

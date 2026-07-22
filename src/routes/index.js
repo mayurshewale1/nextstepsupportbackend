@@ -25,6 +25,14 @@ const {
 } = require('../validators/ticketValidator');
 const upload = require('../middleware/upload');
 
+const optionalFeedbackImage = (req, res, next) => {
+  const contentType = req.headers['content-type'] || '';
+  if (contentType.includes('multipart/form-data')) {
+    return upload.single('feedback_image')(req, res, next);
+  }
+  return next();
+};
+
 const router = Router();
 
 // Health check
@@ -191,6 +199,7 @@ router.put(
   '/tickets/:id/feedback',
   authenticateToken,
   authorizeRoles('User', 'Admin'),
+  optionalFeedbackImage,
   ticketIdRules,
   ticketValidate,
   TicketController.submitFeedback
