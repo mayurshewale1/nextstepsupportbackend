@@ -78,6 +78,7 @@ class UserController {
         totalSystems, state, area, areaHeadId,
         isBuilderDeveloper, is_builder_developer, projectName, project_name,
         projectId, project_id, systemHandoverDates, system_handover_dates,
+        contractStartDate, contract_start_date,
         contractEndDate, contract_end_date,
       } = req.body;
 
@@ -123,6 +124,7 @@ class UserController {
         projectName: projectName || project_name || null,
         projectId: projectId || project_id || null,
         systemHandoverDates: systemHandoverDates || system_handover_dates || null,
+        contractStartDate: contractStartDate || contract_start_date || null,
         contractEndDate: contractEndDate || contract_end_date || null,
       });
 

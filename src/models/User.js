@@ -86,9 +86,9 @@ class User {
          system_type_quantities, custom_systems, car_count, total_systems,
          state, area, area_head_id,
          is_builder_developer, project_name, project_id,
-         system_handover_dates, contract_end_date
+         system_handover_dates, contract_start_date, contract_end_date
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
        RETURNING *`,
       [
         user.userId || user.user_id,
@@ -115,6 +115,7 @@ class User {
         isBuilder ? (user.projectName || user.project_name || null) : null,
         isBuilder ? (user.projectId || user.project_id || null) : null,
         systemHandoverDatesJson,
+        user.contractStartDate || user.contract_start_date || null,
         user.contractEndDate || user.contract_end_date || null,
       ]
     );
@@ -187,7 +188,7 @@ class User {
               system_type_quantities, custom_systems, car_count, 
               system_quantity, total_systems, state, area, area_head_id,
               is_builder_developer, project_name, project_id,
-              system_handover_dates, contract_end_date,
+              system_handover_dates, contract_start_date, contract_end_date,
               is_active, created_at, updated_at 
        FROM users 
        WHERE area_head_id = $1 AND LOWER(role) IN ('user', 'engineer')
@@ -214,7 +215,7 @@ class User {
                         system_type_quantities, custom_systems, car_count, system_quantity,
                         total_systems, state, area, area_head_id,
                         is_builder_developer, project_name, project_id,
-                        system_handover_dates, contract_end_date,
+                        system_handover_dates, contract_start_date, contract_end_date,
                         is_active, created_at, updated_at
                  FROM users WHERE 1=1`;
     const params = [];
@@ -280,7 +281,7 @@ class User {
       'system_type', 'system_types', 'system_type_quantities', 'custom_systems',
       'car_count', 'total_systems', 'state', 'area', 'area_head_id',
       'is_builder_developer', 'project_name', 'project_id',
-      'system_handover_dates', 'contract_end_date', 'contract_reminder_sent_at',
+      'system_handover_dates', 'contract_start_date', 'contract_end_date', 'contract_reminder_sent_at',
     ];
     const updates = [];
     const values = [];
@@ -302,6 +303,7 @@ class User {
       projectName: 'project_name',
       projectId: 'project_id',
       systemHandoverDates: 'system_handover_dates',
+      contractStartDate: 'contract_start_date',
       contractEndDate: 'contract_end_date',
       contractReminderSentAt: 'contract_reminder_sent_at',
     };
